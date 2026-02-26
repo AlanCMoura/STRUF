@@ -6,10 +6,14 @@ import { authOptions } from "@/lib/auth";
 export default async function RegisterPage({
   searchParams,
 }: {
-  searchParams?: { callbackUrl?: string };
+  searchParams?: Promise<{ callbackUrl?: string | string[] }>;
 }) {
   const session = await getServerSession(authOptions);
-  const callbackUrl = searchParams?.callbackUrl;
+  const params = searchParams ? await searchParams : undefined;
+  const callbackParam = params?.callbackUrl;
+  const callbackUrl = Array.isArray(callbackParam)
+    ? callbackParam[0]
+    : callbackParam;
 
   if (session) {
     redirect(callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/");

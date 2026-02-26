@@ -9,7 +9,6 @@ if (!connectionString) {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var _pgPool: Pool | undefined;
 }
 
@@ -29,7 +28,7 @@ if (process.env.NODE_ENV !== "production") {
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
-  params?: any[]
+  params?: ReadonlyArray<unknown>
 ) {
   return pool.query<T>(text, params);
 }
