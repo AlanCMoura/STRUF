@@ -21,7 +21,7 @@ export default async function CheckoutPage() {
             Finalizar pedido
           </h1>
           <p className="mt-2 text-sm text-zinc-500">
-            Endereco, frete e forma de pagamento em uma unica etapa.
+            Revise seu pedido e escolha a forma de pagamento.
           </p>
         </div>
 

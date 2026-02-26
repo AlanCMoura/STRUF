@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useCart } from "@/components/CartProvider";
 
@@ -41,11 +42,43 @@ const mainNav = [
 ];
 
 export default function Header() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const { itemCount, isHydrated } = useCart();
+  const callbackUrl = searchParams.get("callbackUrl");
+  const isCheckoutLoginGate =
+    pathname === "/login" && !!callbackUrl && callbackUrl.startsWith("/checkout");
+  const isCheckoutSignupGate = pathname === "/checkout/cadastro";
+  const isCheckoutIdentificationGate = pathname === "/checkout/identificacao";
+  const isMinimalCheckoutHeader =
+    isCheckoutLoginGate || isCheckoutSignupGate || isCheckoutIdentificationGate;
+
+  if (isMinimalCheckoutHeader) {
+    return (
+      <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)]">
+        <div className="mx-auto flex w-full max-w-[1800px] items-center justify-center px-4 py-4 md:px-6 md:py-6">
+          <Link
+            href="/"
+            className="flex items-center justify-center leading-none text-black"
+            aria-label="Ir para home"
+          >
+            <Image
+              src="/STRUF LOGO BLACK.png"
+              alt="Struf logo"
+              width={804}
+              height={930}
+              className="h-12 w-auto object-contain md:h-14"
+              priority
+            />
+          </Link>
+        </div>
+      </header>
+    );
+  }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white">
+    <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)]">
       <div className="mx-auto flex w-full max-w-[1800px] items-center justify-between gap-4 px-4 py-4 md:px-6 md:py-6">
         <div className="flex min-w-[110px] items-center">
           <Link
@@ -122,13 +155,29 @@ export default function Header() {
             </div>
           ) : (
             <div className="group relative">
-              <Link
-                href="/login"
-                className="block rounded p-2 text-black hover:bg-zinc-100"
-                aria-label="Entrar"
-              >
-                <IconProfile />
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="block rounded p-2 text-black hover:bg-zinc-100"
+                  aria-label="Entrar"
+                >
+                  <IconProfile />
+                </Link>
+
+                <div className="hidden min-w-[120px] leading-tight md:block">
+                  <p className="text-[11px] font-semibold tracking-wide text-zinc-900">
+                    <Link href="/register" className="hover:text-zinc-600">
+                      Cadastre-se
+                    </Link>{" "}
+                    <span className="font-normal text-zinc-500">ou</span>
+                  </p>
+                  <p className="text-[11px] font-semibold tracking-wide text-zinc-900">
+                    <Link href="/login" className="hover:text-zinc-600">
+                      faça seu login
+                    </Link>
+                  </p>
+                </div>
+              </div>
 
               <div className="invisible absolute right-0 top-full z-20 pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
                 <div className="w-72 rounded-xl border border-zinc-200 bg-white p-2 text-sm text-zinc-700 shadow-xl">

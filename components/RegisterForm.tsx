@@ -5,11 +5,15 @@ import { signIn } from "next-auth/react";
 
 type RegisterFormProps = {
   callbackUrl?: string;
+  initialEmail?: string;
 };
 
-export default function RegisterForm({ callbackUrl }: RegisterFormProps) {
+export default function RegisterForm({
+  callbackUrl,
+  initialEmail,
+}: RegisterFormProps) {
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

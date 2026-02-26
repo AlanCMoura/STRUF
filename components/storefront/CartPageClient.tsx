@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useCart } from "@/components/CartProvider";
 
 function formatBRL(value: number) {
@@ -11,8 +12,11 @@ function formatBRL(value: number) {
 }
 
 export default function CartPageClient() {
+  const { status } = useSession();
   const { items, subtotal, updateQuantity, removeItem, clearCart, isHydrated } =
     useCart();
+  const checkoutHref =
+    status === "authenticated" ? "/checkout" : "/login?callbackUrl=/checkout";
 
   if (!isHydrated) {
     return (
@@ -122,7 +126,7 @@ export default function CartPageClient() {
 
         <div className="mt-5 space-y-2">
           <Link
-            href="/checkout"
+            href={checkoutHref}
             className="block bg-black px-4 py-3 text-center text-sm font-semibold uppercase tracking-wide text-white hover:bg-zinc-800"
           >
             Ir para checkout

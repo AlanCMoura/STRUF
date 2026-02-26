@@ -6,7 +6,10 @@ import { authOptions } from "@/lib/auth";
 export default async function RegisterPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ callbackUrl?: string | string[] }>;
+  searchParams?: Promise<{
+    callbackUrl?: string | string[];
+    email?: string | string[];
+  }>;
 }) {
   const session = await getServerSession(authOptions);
   const params = searchParams ? await searchParams : undefined;
@@ -14,6 +17,8 @@ export default async function RegisterPage({
   const callbackUrl = Array.isArray(callbackParam)
     ? callbackParam[0]
     : callbackParam;
+  const emailParam = params?.email;
+  const initialEmail = Array.isArray(emailParam) ? emailParam[0] : emailParam;
 
   if (session) {
     redirect(callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/");
@@ -27,7 +32,7 @@ export default async function RegisterPage({
           Preencha os dados para se cadastrar.
         </p>
         <div className="mt-6">
-          <RegisterForm callbackUrl={callbackUrl} />
+          <RegisterForm callbackUrl={callbackUrl} initialEmail={initialEmail} />
         </div>
       </div>
     </main>
