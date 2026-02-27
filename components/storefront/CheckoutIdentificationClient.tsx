@@ -72,18 +72,33 @@ function EditIcon() {
 
 type Props = {
   initialEmail?: string;
+  loginCallbackUrl?: string;
+  signupPath?: string;
 };
 
-export default function CheckoutIdentificationClient({ initialEmail }: Props) {
+export default function CheckoutIdentificationClient({
+  initialEmail,
+  loginCallbackUrl,
+  signupPath,
+}: Props) {
   const router = useRouter();
+  const safeLoginCallback =
+    loginCallbackUrl && loginCallbackUrl.startsWith("/")
+      ? loginCallbackUrl
+      : "/checkout";
+  const safeSignupPath =
+    signupPath && signupPath.startsWith("/") ? signupPath : "/checkout/cadastro";
   const [loginEmail, setLoginEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [registerEmail, setRegisterEmail] = useState(initialEmail ?? "");
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
   const [isRegisterSubmitting, setIsRegisterSubmitting] = useState(false);
+  const [isForgotSubmitting, setIsForgotSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
+  const [forgotError, setForgotError] = useState<string | null>(null);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -102,7 +117,7 @@ export default function CheckoutIdentificationClient({ initialEmail }: Props) {
         email: normalizedEmail,
         password,
         redirect: false,
-        callbackUrl: "/checkout",
+        callbackUrl: safeLoginCallback,
       });
 
       if (result?.error) {
@@ -110,7 +125,7 @@ export default function CheckoutIdentificationClient({ initialEmail }: Props) {
         return;
       }
 
-      window.location.href = result?.url ?? "/checkout";
+      window.location.href = result?.url ?? safeLoginCallback;
     } finally {
       setIsLoginSubmitting(false);
     }
@@ -146,7 +161,11 @@ export default function CheckoutIdentificationClient({ initialEmail }: Props) {
         return;
       }
 
-      router.push(`/checkout/cadastro?email=${encodeURIComponent(normalizedEmail)}`);
+      const hasQuery = safeSignupPath.includes("?");
+      const separator = hasQuery ? "&" : "?";
+      router.push(
+        `${safeSignupPath}${separator}email=${encodeURIComponent(normalizedEmail)}`
+      );
     } catch (err) {
       setRegisterError(err instanceof Error ? err.message : "Falha ao continuar");
     } finally {
@@ -154,13 +173,54 @@ export default function CheckoutIdentificationClient({ initialEmail }: Props) {
     }
   };
 
+  const handleForgotPassword = async () => {
+    setForgotError(null);
+    setForgotMessage(null);
+
+    const normalizedEmail = loginEmail.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setForgotError("Informe o e-mail acima para receber o link.");
+      return;
+    }
+
+    setIsForgotSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Nao foi possivel enviar o email agora.");
+      }
+
+      setForgotMessage(
+        "Se o e-mail estiver cadastrado, enviamos um link para redefinir sua senha."
+      );
+    } catch (err) {
+      setForgotError(
+        err instanceof Error ? err.message : "Nao foi possivel enviar o email agora."
+      );
+    } finally {
+      setIsForgotSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
+      <div className="flex flex-col gap-1 md:flex-row md:items-end md:gap-2">
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
+          Identificação
+        </h1>
+        <p className="text-sm text-zinc-500">Entre na sua conta ou cadastre-se</p>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="border border-zinc-200 bg-white p-5 md:p-6">
           <div className="flex items-center gap-2 border-b border-zinc-200 pb-4">
             <UserIcon />
-            <h2 className="text-lg font-semibold text-zinc-900">Ja sou cadastrado</h2>
+            <h2 className="text-lg font-semibold text-zinc-900">Já sou cadastrado</h2>
           </div>
 
           <form onSubmit={handleLogin} className="mt-5 space-y-4">
@@ -215,9 +275,22 @@ export default function CheckoutIdentificationClient({ initialEmail }: Props) {
               <p className="text-sm text-red-700 md:pl-[80px]">{loginError}</p>
             ) : null}
 
-            <p className="text-xs text-zinc-500 md:pl-[80px]">
-              Esqueceu a senha ou precisa criar? Use a area ao lado.
-            </p>
+            <div className="md:pl-[80px]">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={isForgotSubmitting}
+                className="cursor-pointer text-xs text-zinc-600 underline underline-offset-2 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isForgotSubmitting ? "Enviando..." : "Esqueceu a senha?"}
+              </button>
+              {forgotError ? (
+                <p className="mt-1 text-xs text-red-700">{forgotError}</p>
+              ) : null}
+              {forgotMessage ? (
+                <p className="mt-1 text-xs text-emerald-700">{forgotMessage}</p>
+              ) : null}
+            </div>
           </form>
         </section>
 
@@ -225,7 +298,7 @@ export default function CheckoutIdentificationClient({ initialEmail }: Props) {
           <div className="flex items-center gap-2 border-b border-zinc-200 pb-4">
             <EditIcon />
             <h2 className="text-lg font-semibold text-zinc-900">
-              Ainda nao possuo cadastro
+              Ainda não possuo cadastro
             </h2>
           </div>
 

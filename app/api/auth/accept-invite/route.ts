@@ -39,9 +39,12 @@ export async function POST(req: Request) {
         id: number;
         user_id: number;
         expires_at: string;
+        email: string;
+        role: "customer" | "admin" | "manager";
       }>(
-        `SELECT id, user_id, expires_at
-         FROM user_invites
+        `SELECT i.id, i.user_id, i.expires_at, u.email, u.role
+         FROM user_invites i
+         JOIN users u ON u.id = i.user_id
          WHERE token_hash = $1`,
         [tokenHash]
       );
@@ -83,7 +86,12 @@ export async function POST(req: Request) {
       }
 
       log.info({ userId: invite.user_id }, "Senha definida via convite");
-      return NextResponse.json({ ok: true, requestId });
+      return NextResponse.json({
+        ok: true,
+        email: invite.email,
+        role: invite.role,
+        requestId,
+      });
     } finally {
       client.release();
     }

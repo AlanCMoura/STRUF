@@ -1,9 +1,8 @@
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import CheckoutLoginAccessForm from "@/components/CheckoutLoginAccessForm";
+import CheckoutIdentificationClient from "@/components/storefront/CheckoutIdentificationClient";
 import CheckoutGateCartSummary from "@/components/storefront/CheckoutGateCartSummary";
-import LoginForm from "@/components/LoginForm";
 import { authOptions } from "@/lib/auth";
 
 export default async function LoginPage({
@@ -49,23 +48,12 @@ export default async function LoginPage({
   }
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-12 text-zinc-900">
-      <div className="mx-auto w-full max-w-md rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h1 className="text-center text-2xl font-semibold">Entrar</h1>
-        <p className="mt-2 text-center text-sm text-zinc-600">
-          Use seu email e senha para acessar.
-        </p>
-        <div className="mt-6">
-          <LoginForm callbackUrl={callbackUrl} />
-        </div>
-        <div className="mt-6">
-          <Link
-            href={`/register${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
-            className="flex w-full items-center justify-center rounded border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
-          >
-            Cadastrar-se
-          </Link>
-        </div>
+    <main className="min-h-screen bg-zinc-50 px-4 py-10 text-zinc-900 md:px-6 md:py-12">
+      <div className="mx-auto w-full max-w-6xl">
+        <CheckoutIdentificationClient
+          loginCallbackUrl={callbackUrl}
+          signupPath={`/register${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
+        />
       </div>
     </main>
   );

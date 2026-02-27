@@ -18,6 +18,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Struf",
   description: "Streetwear storefront com vitrine, PDP, carrinho e checkout",
+  icons: {
+    icon: "/STRUF%20LOGO%20BLACK.png",
+    shortcut: "/STRUF%20LOGO%20BLACK.png",
+    apple: "/STRUF%20LOGO%20BLACK.png",
+  },
 };
 
 export default function RootLayout({

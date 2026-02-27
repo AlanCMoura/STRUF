@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useCart } from "@/components/CartProvider";
 
@@ -43,16 +43,17 @@ const mainNav = [
 
 export default function Header() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const { itemCount, isHydrated } = useCart();
-  const callbackUrl = searchParams.get("callbackUrl");
-  const isCheckoutLoginGate =
-    pathname === "/login" && !!callbackUrl && callbackUrl.startsWith("/checkout");
+  const isCheckoutLoginGate = pathname === "/login";
   const isCheckoutSignupGate = pathname === "/checkout/cadastro";
   const isCheckoutIdentificationGate = pathname === "/checkout/identificacao";
+  const isPasswordResetPage = pathname === "/redefinir-senha";
   const isMinimalCheckoutHeader =
-    isCheckoutLoginGate || isCheckoutSignupGate || isCheckoutIdentificationGate;
+    isCheckoutLoginGate ||
+    isCheckoutSignupGate ||
+    isCheckoutIdentificationGate ||
+    isPasswordResetPage;
 
   if (isMinimalCheckoutHeader) {
     return (

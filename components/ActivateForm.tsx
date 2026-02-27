@@ -1,8 +1,11 @@
 "use client";
 
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function ActivateForm({ token }: { token: string }) {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,9 +40,34 @@ export default function ActivateForm({ token }: { token: string }) {
         throw new Error(payload?.error?.message ?? "Falha ao ativar conta");
       }
 
-      setSuccess("Senha criada com sucesso. Voce ja pode fazer login.");
+      const email = payload?.email as string | undefined;
+      const role = payload?.role as "customer" | "admin" | "manager" | undefined;
+
+      if (!email) {
+        setSuccess("Senha criada com sucesso. Voce ja pode fazer login.");
+        setPassword("");
+        setConfirm("");
+        return;
+      }
+
+      const callbackUrl = role === "customer" ? "/" : "/admin";
+      const signInResult = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+        callbackUrl,
+      });
+
+      if (signInResult?.error) {
+        setSuccess("Senha criada com sucesso. Faca login para continuar.");
+        setPassword("");
+        setConfirm("");
+        return;
+      }
+
       setPassword("");
       setConfirm("");
+      router.push(signInResult?.url ?? callbackUrl);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Falha ao ativar conta";
