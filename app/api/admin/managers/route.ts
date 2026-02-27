@@ -61,7 +61,6 @@ export async function POST(req: Request) {
     );
 
     let userId: number;
-    // CORREÇÃO AQUI: Trocamos rowCount por rows.length para satisfazer o TypeScript
     if (existing.rows.length > 0) {
       const existingUser = existing.rows[0];
       if (existingUser.role !== "manager") {

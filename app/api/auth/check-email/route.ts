@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      exists: result.rowCount > 0,
+      exists: result.rows.length > 0,
     });
   } catch {
     return NextResponse.json(

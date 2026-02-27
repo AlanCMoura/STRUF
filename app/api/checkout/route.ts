@@ -109,7 +109,7 @@ export async function POST(req: Request) {
         [userId]
       );
 
-      if (userCheck.rowCount === 0) {
+      if (userCheck.rows.length === 0) {
         return respondError({
           requestId,
           status: 404,

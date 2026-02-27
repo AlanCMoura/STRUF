@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       [email]
     );
 
-    if (existing.rowCount > 0) {
+    if (existing.rows.length > 0) {
       log.warn({ email }, "Cadastro invalido: email ja cadastrado");
       return NextResponse.json(
         {

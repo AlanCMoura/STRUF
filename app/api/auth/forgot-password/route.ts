@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     );
 
     // Sempre retornamos sucesso para nao vazar se o email existe.
-    if (userResult.rowCount === 0) {
+    if (userResult.rows.length === 0) {
       return NextResponse.json({ ok: true, requestId }, { status: 200 });
     }
 
