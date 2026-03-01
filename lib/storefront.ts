@@ -67,29 +67,30 @@ function groupProducts(rows: ProductVariantRow[]): ProductCardItem[] {
 
   for (const row of rows) {
     const existing = map.get(row.product_id);
-    const hasVariant = row.variant_id !== null;
+    const parsedVariant: VariantItem | null =
+      row.variant_id !== null &&
+      row.sku !== null &&
+      row.size !== null &&
+      row.color !== null &&
+      row.stock_quantity !== null
+        ? {
+            id: row.variant_id,
+            sku: row.sku,
+            size: row.size,
+            color: row.color,
+            stockQuantity: Number(row.stock_quantity),
+          }
+        : null;
 
     if (!existing) {
       const variants: VariantItem[] = [];
       const initialStock =
-        hasVariant && row.stock_quantity !== null
-          ? Math.max(0, Number(row.stock_quantity))
+        parsedVariant !== null
+          ? Math.max(0, Number(parsedVariant.stockQuantity))
           : 0;
 
-      if (
-        hasVariant &&
-        row.sku !== null &&
-        row.size !== null &&
-        row.color !== null &&
-        row.stock_quantity !== null
-      ) {
-        variants.push({
-          id: row.variant_id,
-          sku: row.sku,
-          size: row.size,
-          color: row.color,
-          stockQuantity: Number(row.stock_quantity),
-        });
+      if (parsedVariant !== null) {
+        variants.push(parsedVariant);
       }
 
       map.set(row.product_id, {
@@ -109,21 +110,9 @@ function groupProducts(rows: ProductVariantRow[]): ProductCardItem[] {
       continue;
     }
 
-    if (
-      hasVariant &&
-      row.sku !== null &&
-      row.size !== null &&
-      row.color !== null &&
-      row.stock_quantity !== null
-    ) {
-      existing.variants.push({
-        id: row.variant_id,
-        sku: row.sku,
-        size: row.size,
-        color: row.color,
-        stockQuantity: Number(row.stock_quantity),
-      });
-      existing.totalStock += Math.max(0, Number(row.stock_quantity));
+    if (parsedVariant !== null) {
+      existing.variants.push(parsedVariant);
+      existing.totalStock += Math.max(0, Number(parsedVariant.stockQuantity));
     }
   }
 
