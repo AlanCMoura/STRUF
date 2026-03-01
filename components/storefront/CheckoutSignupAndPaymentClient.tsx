@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { useCart } from "@/components/CartProvider";
 
 function formatBRL(value: number) {
@@ -41,6 +41,27 @@ function formatCellphone(value: string) {
 
   return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
 }
+
+function normalizeCepDigits(value: string) {
+  return value.replace(/\D/g, "").slice(0, 8);
+}
+
+function formatCep(value: string) {
+  const digits = normalizeCepDigits(value);
+  if (digits.length <= 5) {
+    return digits;
+  }
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+type ViaCepResponse = {
+  erro?: boolean;
+  logradouro?: string;
+  complemento?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+};
 
 function isValidCpf(value: string) {
   const cpf = normalizeCpf(value);
@@ -293,7 +314,6 @@ export default function CheckoutSignupAndPaymentClient({
   const [street, setStreet] = useState("");
   const [number, setNumber] = useState("");
   const [complement, setComplement] = useState("");
-  const [reference, setReference] = useState("");
   const [district, setDistrict] = useState("");
   const [city, setCity] = useState("");
   const [stateUf, setStateUf] = useState("");
@@ -302,6 +322,9 @@ export default function CheckoutSignupAndPaymentClient({
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [, setIsCepLoading] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
+  const lastCepRequestedRef = useRef<string | null>(null);
 
   const inputClass =
     "h-9 w-full border border-zinc-300 px-3 text-xs text-zinc-900 outline-none";
@@ -311,6 +334,72 @@ export default function CheckoutSignupAndPaymentClient({
     () => (isRegisterOnly ? subtotal : subtotal + shippingPrice),
     [isRegisterOnly, shippingPrice, subtotal]
   );
+
+  const lookupCep = useCallback(
+    async (
+      rawCep?: string,
+      options?: { showInvalidError?: boolean }
+    ) => {
+      const cepDigits = normalizeCepDigits(rawCep ?? zipCode);
+      const showInvalidError = options?.showInvalidError ?? true;
+
+      if (cepDigits.length !== 8) {
+        if (showInvalidError) {
+          setCepError("Informe um CEP valido com 8 digitos");
+        }
+        return;
+      }
+
+      if (lastCepRequestedRef.current === cepDigits) {
+        return;
+      }
+
+      setCepError(null);
+      setIsCepLoading(true);
+      lastCepRequestedRef.current = cepDigits;
+
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Falha ao consultar CEP");
+        }
+
+        const data = (await response.json()) as ViaCepResponse;
+
+        if (data.erro) {
+          setCepError("CEP nao encontrado");
+          return;
+        }
+
+        setStreet(data.logradouro ?? "");
+        setDistrict(data.bairro ?? "");
+        setCity(data.localidade ?? "");
+        setStateUf((data.uf ?? "").toUpperCase());
+
+      } catch {
+        setCepError("Nao foi possivel consultar o CEP");
+      } finally {
+        setIsCepLoading(false);
+      }
+    },
+    [zipCode]
+  );
+
+  useEffect(() => {
+    const cepDigits = normalizeCepDigits(zipCode);
+    if (cepDigits.length !== 8) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void lookupCep(cepDigits, { showInvalidError: false });
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [zipCode, lookupCep]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -333,7 +422,7 @@ export default function CheckoutSignupAndPaymentClient({
     const normalizedCpf = normalizeCpf(cpf);
     const normalizedCellphone = normalizePhoneDigits(cellphone);
     const normalizedBirthDate = birthDate.trim();
-    const normalizedZipCode = zipCode.trim();
+    const normalizedZipCode = normalizeCepDigits(zipCode);
     const normalizedStreet = street.trim();
     const normalizedNumber = number.trim();
     const normalizedComplement = complement.trim();
@@ -387,15 +476,14 @@ export default function CheckoutSignupAndPaymentClient({
     }
 
     if (
-      !normalizedZipCode ||
+      normalizedZipCode.length !== 8 ||
       !normalizedStreet ||
       !normalizedNumber ||
-      !normalizedComplement ||
       !normalizedDistrict ||
       !normalizedCity ||
       !normalizedState
     ) {
-      setError("Preencha o endereço completo (referencia opcional)");
+      setError("Preencha o endereço completo");
       return;
     }
 
@@ -421,7 +509,6 @@ export default function CheckoutSignupAndPaymentClient({
             street: normalizedStreet,
             number: normalizedNumber,
             complement: normalizedComplement,
-            reference,
             district: normalizedDistrict,
             city: normalizedCity,
             state: normalizedState,
@@ -607,32 +694,43 @@ export default function CheckoutSignupAndPaymentClient({
           <section className="border border-zinc-200 bg-white p-5 md:p-6">
             <SectionTitle title="Endereço" icon={<IconPin />} />
             <div className="grid gap-4 md:grid-cols-2 md:gap-x-5 md:gap-y-4">
-              <Field label="CEP" required>
-                <input
-                  required
-                  value={zipCode}
-                  onChange={(event) => setZipCode(event.target.value)}
-                  className={inputClass}
-                />
-              </Field>
+              <div className="md:col-span-2">
+                <Field label="CEP" required>
+                  <input
+                    required
+                    inputMode="numeric"
+                    maxLength={9}
+                    value={zipCode}
+                    onChange={(event) => {
+                      const next = formatCep(event.target.value);
+                      setZipCode(next);
+                      if (normalizeCepDigits(next).length < 8) {
+                        lastCepRequestedRef.current = null;
+                      }
+                      if (cepError) {
+                        setCepError(null);
+                      }
+                    }}
+                    onBlur={(event) => {
+                      void lookupCep(event.target.value, { showInvalidError: true });
+                    }}
+                    className={`${inputClass} max-w-[180px]`}
+                  />
+                </Field>
+                {cepError ? (
+                  <p className="mt-2 text-xs text-red-700">{cepError}</p>
+                ) : null}
+              </div>
               <Field label="Endereco" required>
                 <input required value={street} onChange={(event) => setStreet(event.target.value)} className={inputClass} />
               </Field>
               <Field label="Número" required>
                 <input required value={number} onChange={(event) => setNumber(event.target.value)} className={inputClass} />
               </Field>
-              <Field label="Complemento" required>
+              <Field label="Complemento">
                 <input
-                  required
                   value={complement}
                   onChange={(event) => setComplement(event.target.value)}
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Referência">
-                <input
-                  value={reference}
-                  onChange={(event) => setReference(event.target.value)}
                   className={inputClass}
                 />
               </Field>
@@ -878,22 +976,31 @@ export default function CheckoutSignupAndPaymentClient({
           <SectionTitle title="Entrega" icon={<IconTruck />} />
 
           <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-              <Field label="CEP" required>
-                <input
-                  required
-                  value={zipCode}
-                  onChange={(event) => setZipCode(event.target.value)}
-                  className={inputClass}
-                />
-              </Field>
-              <button
-                type="button"
-                className="h-9 border border-zinc-300 px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-              >
-                Alterar entrega
-              </button>
-            </div>
+            <Field label="CEP" required>
+              <input
+                required
+                inputMode="numeric"
+                maxLength={9}
+                value={zipCode}
+                onChange={(event) => {
+                  const next = formatCep(event.target.value);
+                  setZipCode(next);
+                  if (normalizeCepDigits(next).length < 8) {
+                    lastCepRequestedRef.current = null;
+                  }
+                  if (cepError) {
+                    setCepError(null);
+                  }
+                }}
+                onBlur={(event) => {
+                  void lookupCep(event.target.value, { showInvalidError: true });
+                }}
+                className={`${inputClass} max-w-[180px]`}
+              />
+            </Field>
+            {cepError ? (
+              <p className="text-xs text-red-700">{cepError}</p>
+            ) : null}
 
             <div className="space-y-2 border-t border-zinc-200 pt-3">
               <label className="flex cursor-pointer items-center justify-between border border-zinc-200 px-3 py-2 text-xs">
@@ -932,23 +1039,13 @@ export default function CheckoutSignupAndPaymentClient({
               </Field>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Complemento" required>
-                <input
-                  required
-                  value={complement}
-                  onChange={(event) => setComplement(event.target.value)}
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Referência">
-                <input
-                  value={reference}
-                  onChange={(event) => setReference(event.target.value)}
-                  className={inputClass}
-                />
-              </Field>
-            </div>
+            <Field label="Complemento">
+              <input
+                value={complement}
+                onChange={(event) => setComplement(event.target.value)}
+                className={inputClass}
+              />
+            </Field>
 
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Bairro" required>

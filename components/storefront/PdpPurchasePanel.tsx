@@ -28,6 +28,8 @@ export default function PdpPurchasePanel({
     name: string;
     description: string | null;
     basePrice: number;
+    currentPrice: number;
+    isSaleActive: boolean;
     variants: Variant[];
   };
 }) {
@@ -36,28 +38,70 @@ export default function PdpPurchasePanel({
   const { addItem } = useCart();
 
   const [selectedVariantId, setSelectedVariantId] = useState<number>(
-    product.variants[0]?.id ?? 0
+    product.variants.find((variant) => variant.stockQuantity > 0)?.id ??
+      product.variants[0]?.id ??
+      0
   );
   const [quantity, setQuantity] = useState(1);
   const [shippingZip, setShippingZip] = useState("");
-  const [feedback, setFeedback] = useState<string | null>(null);
 
   const selectedVariant = useMemo(
     () => product.variants.find((variant) => variant.id === selectedVariantId),
     [product.variants, selectedVariantId]
   );
 
+  const sizeOptions = useMemo(() => {
+    const grouped = new Map<string, Variant[]>();
+
+    for (const variant of product.variants) {
+      const list = grouped.get(variant.size) ?? [];
+      list.push(variant);
+      grouped.set(variant.size, list);
+    }
+
+    const sizeOrder = ["PP", "P", "M", "G", "GG"];
+
+    return Array.from(grouped.entries())
+      .map(([size, variants]) => {
+        const hasStock = variants.some((variant) => variant.stockQuantity > 0);
+        const preferredColor = selectedVariant?.color;
+
+        const representative =
+          (preferredColor
+            ? variants.find(
+                (variant) =>
+                  variant.color === preferredColor && variant.stockQuantity > 0
+              )
+            : undefined) ??
+          variants.find((variant) => variant.stockQuantity > 0) ??
+          variants[0];
+
+        return {
+          size,
+          hasStock,
+          representativeId: representative.id,
+        };
+      })
+      .sort((a, b) => {
+        const aIndex = sizeOrder.indexOf(a.size);
+        const bIndex = sizeOrder.indexOf(b.size);
+        const aRank = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+        const bRank = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+        return aRank - bRank;
+      });
+  }, [product.variants, selectedVariant?.color]);
+
   const maxQuantity = Math.max(selectedVariant?.stockQuantity ?? 0, 0);
   const hasVariants = product.variants.length > 0;
+  const hasAvailableStock = product.variants.some((variant) => variant.stockQuantity > 0);
+  const canPurchase = hasVariants && maxQuantity > 0;
 
   const handleAddToCart = () => {
     if (!selectedVariant) {
-      setFeedback("Selecione uma variacao");
       return false;
     }
 
     if (selectedVariant.stockQuantity <= 0) {
-      setFeedback("Variacao sem estoque");
       return false;
     }
 
@@ -68,11 +112,10 @@ export default function PdpPurchasePanel({
       sku: selectedVariant.sku,
       color: selectedVariant.color,
       size: selectedVariant.size,
-      unitPrice: product.basePrice,
+      unitPrice: product.currentPrice,
       quantity: Math.max(1, Math.min(quantity, selectedVariant.stockQuantity)),
     });
 
-    setFeedback("Adicionado ao carrinho");
     return true;
   };
 
@@ -103,37 +146,36 @@ export default function PdpPurchasePanel({
           <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-700">
             Selecione a opcao de tamanho:{" "}
             <span className="font-black text-zinc-900">
-              {selectedVariant?.size ?? "-"}
+              {selectedVariant?.size ?? sizeOptions[0]?.size ?? "-"}
             </span>
           </p>
 
           <div className="flex flex-wrap gap-2">
-            {product.variants.map((variant) => {
-              const isActive = variant.id === selectedVariantId;
-              const soldOut = variant.stockQuantity <= 0;
+            {sizeOptions.map((sizeOption) => {
+              const isActive = selectedVariant?.size === sizeOption.size;
+              const soldOut = !sizeOption.hasStock;
 
               return (
                 <button
-                  key={variant.id}
+                  key={sizeOption.size}
                   type="button"
                   disabled={soldOut}
                   onClick={() => {
-                    setSelectedVariantId(variant.id);
+                    setSelectedVariantId(sizeOption.representativeId);
                     setQuantity(1);
-                    setFeedback(null);
                   }}
                   className={`relative h-9 min-w-[46px] border px-2 text-[11px] font-semibold uppercase ${
                     isActive
                       ? "border-black bg-black text-white"
                       : "border-zinc-300 bg-white text-zinc-800"
                   } ${soldOut ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:border-zinc-500"}`}
-                  title={soldOut ? "Sem estoque" : `${variant.color} / ${variant.size}`}
-                  aria-label={`${variant.size} ${variant.color}`}
+                  title={soldOut ? "Sem estoque" : `Tamanho ${sizeOption.size}`}
+                  aria-label={`Tamanho ${sizeOption.size}${soldOut ? " sem estoque" : ""}`}
                 >
-                  {variant.size}
+                  {sizeOption.size}
                   {isActive ? (
                     <span className="absolute right-1 top-0 text-[9px] leading-none">
-                      ✓
+                      {"\u2713"}
                     </span>
                   ) : null}
                 </button>
@@ -144,9 +186,26 @@ export default function PdpPurchasePanel({
       ) : null}
 
       <div className="space-y-1 border-b border-zinc-200 pb-5">
-        <p className="text-xl font-black leading-none text-zinc-950 md:text-2xl">
-          {formatBRL(product.basePrice)}
-        </p>
+        {hasAvailableStock ? (
+          product.isSaleActive ? (
+            <div className="space-y-1">
+              <p className="text-sm text-zinc-400 line-through">
+                {formatBRL(product.basePrice)}
+              </p>
+              <p className="text-xl font-black leading-none text-zinc-950 md:text-2xl">
+                {formatBRL(product.currentPrice)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-xl font-black leading-none text-zinc-950 md:text-2xl">
+              {formatBRL(product.currentPrice)}
+            </p>
+          )
+        ) : (
+          <p className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+            indisponivel
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -154,7 +213,8 @@ export default function PdpPurchasePanel({
           <button
             type="button"
             onClick={() => setQuantity((prev) => Math.max(prev - 1, 1))}
-            className="grid h-full w-full cursor-pointer place-items-center hover:bg-zinc-100"
+            disabled={!canPurchase}
+            className="grid h-full w-full cursor-pointer place-items-center hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Diminuir quantidade"
           >
             -
@@ -165,7 +225,8 @@ export default function PdpPurchasePanel({
           <button
             type="button"
             onClick={() => setQuantity((prev) => Math.min(prev + 1, Math.max(maxQuantity, 1)))}
-            className="grid h-full w-full cursor-pointer place-items-center hover:bg-zinc-100"
+            disabled={!canPurchase}
+            className="grid h-full w-full cursor-pointer place-items-center hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Aumentar quantidade"
           >
             +
@@ -175,7 +236,8 @@ export default function PdpPurchasePanel({
         <button
           type="button"
           onClick={handleBuyNow}
-          className="h-12 flex-1 cursor-pointer bg-black px-4 text-xs font-black uppercase tracking-wide text-white"
+          disabled={!canPurchase}
+          className="h-12 flex-1 cursor-pointer bg-black px-4 text-xs font-black uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
         >
           Comprar
         </button>

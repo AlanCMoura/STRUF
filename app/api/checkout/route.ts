@@ -123,6 +123,9 @@ export async function POST(req: Request) {
         variant_id: number;
         stock_quantity: number;
         base_price: string;
+        sale_price: string | null;
+        on_sale: boolean;
+        sale_ends_at: string | null;
         sku: string;
       };
 
@@ -133,6 +136,9 @@ export async function POST(req: Request) {
             v.id AS variant_id,
             v.stock_quantity,
             p.base_price,
+            p.sale_price,
+            p.on_sale,
+            p.sale_ends_at::text AS sale_ends_at,
             v.sku
           FROM product_variants v
           JOIN products p ON p.id = v.product_id
@@ -167,7 +173,17 @@ export async function POST(req: Request) {
 
       for (const row of rows) {
         const quantity = quantityByVariant.get(row.variant_id) ?? 0;
-        const priceNumber = Number(row.base_price);
+        const saleEndsAtTs = row.sale_ends_at
+          ? new Date(row.sale_ends_at).getTime()
+          : null;
+        const saleActive =
+          row.on_sale === true &&
+          row.sale_price !== null &&
+          (saleEndsAtTs === null ||
+            (!Number.isNaN(saleEndsAtTs) && saleEndsAtTs > Date.now()));
+        const priceNumber = saleActive
+          ? Number(row.sale_price)
+          : Number(row.base_price);
         const priceCents = Math.round(priceNumber * 100);
 
         if (row.stock_quantity < quantity) {

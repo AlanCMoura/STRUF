@@ -53,6 +53,14 @@ function normalizePhone(value: unknown) {
   return digitsOnly.length > 0 ? digitsOnly : null;
 }
 
+function normalizeCep(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const digitsOnly = value.replace(/\D/g, "");
+  return digitsOnly.length > 0 ? digitsOnly : null;
+}
+
 function normalizeBirthDate(value: unknown) {
   if (typeof value !== "string") {
     return null;
@@ -114,7 +122,7 @@ export async function POST(req: Request) {
     const sex = toNullableString(body?.profile?.sex);
     const birthDate = normalizeBirthDate(body?.profile?.birthDate);
 
-    const zipCode = toNullableString(body?.address?.zipCode);
+    const zipCode = normalizeCep(body?.address?.zipCode);
     const street = toNullableString(body?.address?.street);
     const addressNumber = toNullableString(body?.address?.number);
     const complement = toNullableString(body?.address?.complement);
@@ -197,7 +205,6 @@ export async function POST(req: Request) {
       !zipCode ||
       !street ||
       !addressNumber ||
-      !complement ||
       !district ||
       !city ||
       !state
@@ -207,7 +214,21 @@ export async function POST(req: Request) {
         {
           error: {
             code: "INVALID_INPUT",
-            message: "Endereco completo obrigatorio (Referencia opcional)",
+            message: "Endereco completo obrigatorio (Complemento e referencia sao opcionais)",
+          },
+          requestId,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (zipCode.length !== 8) {
+      log.warn({ email }, "Cadastro invalido: CEP invalido");
+      return NextResponse.json(
+        {
+          error: {
+            code: "INVALID_INPUT",
+            message: "CEP invalido",
           },
           requestId,
         },

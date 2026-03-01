@@ -20,6 +20,11 @@ export type ProductCardItem = {
   name: string;
   description: string | null;
   basePrice: number;
+  currentPrice: number;
+  salePrice: number | null;
+  onSale: boolean;
+  saleEndsAt: string | null;
+  isSaleActive: boolean;
   category: CategoryItem;
   totalStock: number;
   variants: VariantItem[];
@@ -32,48 +37,94 @@ type ProductVariantRow = {
   product_name: string;
   product_description: string | null;
   base_price: string | number;
+  current_price: string | number;
+  sale_price: string | number | null;
+  on_sale: boolean;
+  sale_ends_at: string | null;
+  is_sale_active: boolean;
   category_id: number;
   category_name: string;
   category_slug: string;
-  variant_id: number;
-  sku: string;
-  size: string;
-  color: string;
-  stock_quantity: number;
+  variant_id: number | null;
+  sku: string | null;
+  size: string | null;
+  color: string | null;
+  stock_quantity: number | null;
 };
+
+function resolveSaleStatus(row: ProductVariantRow) {
+  return {
+    onSale: row.on_sale,
+    salePrice: row.sale_price !== null ? Number(row.sale_price) : null,
+    saleEndsAt: row.sale_ends_at,
+    isSaleActive: row.is_sale_active,
+    currentPrice: Number(row.current_price),
+  };
+}
 
 function groupProducts(rows: ProductVariantRow[]): ProductCardItem[] {
   const map = new Map<number, ProductCardItem>();
 
   for (const row of rows) {
     const existing = map.get(row.product_id);
-    const variant: VariantItem = {
-      id: row.variant_id,
-      sku: row.sku,
-      size: row.size,
-      color: row.color,
-      stockQuantity: row.stock_quantity,
-    };
+    const hasVariant = row.variant_id !== null;
 
     if (!existing) {
+      const variants: VariantItem[] = [];
+      const initialStock =
+        hasVariant && row.stock_quantity !== null
+          ? Math.max(0, Number(row.stock_quantity))
+          : 0;
+
+      if (
+        hasVariant &&
+        row.sku !== null &&
+        row.size !== null &&
+        row.color !== null &&
+        row.stock_quantity !== null
+      ) {
+        variants.push({
+          id: row.variant_id,
+          sku: row.sku,
+          size: row.size,
+          color: row.color,
+          stockQuantity: Number(row.stock_quantity),
+        });
+      }
+
       map.set(row.product_id, {
         id: row.product_id,
         name: row.product_name,
         description: row.product_description,
         basePrice: Number(row.base_price),
+        ...resolveSaleStatus(row),
         category: {
           id: row.category_id,
           name: row.category_name,
           slug: row.category_slug,
         },
-        totalStock: Math.max(0, row.stock_quantity),
-        variants: [variant],
+        totalStock: initialStock,
+        variants,
       });
       continue;
     }
 
-    existing.variants.push(variant);
-    existing.totalStock += Math.max(0, row.stock_quantity);
+    if (
+      hasVariant &&
+      row.sku !== null &&
+      row.size !== null &&
+      row.color !== null &&
+      row.stock_quantity !== null
+    ) {
+      existing.variants.push({
+        id: row.variant_id,
+        sku: row.sku,
+        size: row.size,
+        color: row.color,
+        stockQuantity: Number(row.stock_quantity),
+      });
+      existing.totalStock += Math.max(0, Number(row.stock_quantity));
+    }
   }
 
   return Array.from(map.values());
@@ -109,6 +160,21 @@ export async function getStoreProducts(filters?: {
         p.name AS product_name,
         p.description AS product_description,
         p.base_price,
+        CASE
+          WHEN p.on_sale = true
+           AND p.sale_price IS NOT NULL
+           AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
+          THEN p.sale_price
+          ELSE p.base_price
+        END AS current_price,
+        p.sale_price,
+        p.on_sale,
+        p.sale_ends_at::text AS sale_ends_at,
+        (
+          p.on_sale = true
+          AND p.sale_price IS NOT NULL
+          AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
+        ) AS is_sale_active,
         c.id AS category_id,
         c.name AS category_name,
         c.slug AS category_slug,
@@ -119,7 +185,7 @@ export async function getStoreProducts(filters?: {
         v.stock_quantity
       FROM products p
       JOIN categories c ON c.id = p.category_id
-      JOIN product_variants v ON v.product_id = p.id
+      LEFT JOIN product_variants v ON v.product_id = p.id
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY p.id ASC, v.id ASC
     `,
@@ -144,6 +210,21 @@ export async function getProductById(
         p.name AS product_name,
         p.description AS product_description,
         p.base_price,
+        CASE
+          WHEN p.on_sale = true
+           AND p.sale_price IS NOT NULL
+           AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
+          THEN p.sale_price
+          ELSE p.base_price
+        END AS current_price,
+        p.sale_price,
+        p.on_sale,
+        p.sale_ends_at::text AS sale_ends_at,
+        (
+          p.on_sale = true
+          AND p.sale_price IS NOT NULL
+          AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
+        ) AS is_sale_active,
         c.id AS category_id,
         c.name AS category_name,
         c.slug AS category_slug,
@@ -154,7 +235,7 @@ export async function getProductById(
         v.stock_quantity
       FROM products p
       JOIN categories c ON c.id = p.category_id
-      JOIN product_variants v ON v.product_id = p.id
+      LEFT JOIN product_variants v ON v.product_id = p.id
       WHERE p.id = $1
       ORDER BY v.id ASC
     `,

@@ -2,7 +2,7 @@
 
 const CONTACT_PHONE = "(13) 98225-8943";
 const CONTACT_PHONE_LINK = "5513982258943";
-const CONTACT_EMAIL = "garciastruf@gmail.com";
+const CONTACT_EMAIL = "strufdesigns@gmail.com";
 const INSTAGRAM_URL = "https://instagram.com/strufactory";
 
 function InstagramIcon() {

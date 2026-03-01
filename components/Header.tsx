@@ -8,15 +8,24 @@ import { useCart } from "@/components/CartProvider";
 
 function IconChat() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v7A2.5 2.5 0 0 1 17.5 15H10l-4 4v-4H6.5A2.5 2.5 0 0 1 4 12.5z" />
+    </svg>
+  );
+}
+
+function IconMail() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M3 6.5h18v11H3z" />
+      <path d="M3 7l9 7 9-7" />
     </svg>
   );
 }
 
 function IconProfile() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.7">
       <circle cx="12" cy="8" r="4" />
       <path d="M4 20c0-4.418 3.582-8 8-8s8 3.582 8 8" />
     </svg>
@@ -25,7 +34,7 @@ function IconProfile() {
 
 function IconCart() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M3 4h2l1.2 9.2a2 2 0 0 0 2 1.8h8.8a2 2 0 0 0 2-1.6L21 7H7" />
       <circle cx="10" cy="19" r="1.25" />
       <circle cx="18" cy="19" r="1.25" />
@@ -34,12 +43,16 @@ function IconCart() {
 }
 
 const mainNav = [
-  { href: "/categoria/streetwear", label: "Ver todos" },
-  { href: "/categoria/streetwear", label: "Ofertas" },
-  { href: "/categoria/streetwear", label: "Camisetas" },
-  { href: "/categoria/streetwear", label: "Moletons" },
+  { href: "/categoria/camisetas", label: "Camisetas" },
+  { href: "/categoria/moletons", label: "Moletons" },
+  { href: "/produtos", label: "Ver todos" },
+  { href: "/ofertas", label: "Ofertas" },
   { href: "/sobre-nos", label: "Quem somos" },
 ];
+
+const CONTACT_PHONE = "(13) 98225-8943";
+const CONTACT_PHONE_LINK = "5513982258943";
+const CONTACT_EMAIL = "strufdesigns@gmail.com";
 
 export default function Header() {
   const pathname = usePathname();
@@ -109,14 +122,57 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2 md:gap-3">
-          <button
-            type="button"
-            className="rounded p-2 text-black hover:bg-zinc-100"
-            aria-label="Atendimento"
-          >
-            <IconChat />
-          </button>
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="group relative">
+            <button
+              type="button"
+              className="cursor-pointer rounded p-2 text-black hover:bg-zinc-100"
+              aria-label="Atendimento"
+            >
+              <IconChat />
+            </button>
+
+            <div className="invisible absolute right-0 top-full z-20 pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+              <div className="w-72 rounded-xl border border-zinc-200 bg-white p-2 text-sm text-zinc-700 shadow-xl">
+                <div className="border-b border-zinc-100 px-3 pb-2 text-sm font-semibold leading-snug text-zinc-900">
+                  Estamos no whatsapp
+                </div>
+
+                <a
+                  href={`https://wa.me/${CONTACT_PHONE_LINK}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="flex cursor-pointer items-center gap-3 rounded px-3 py-2 hover:bg-zinc-50"
+                >
+                  <Image
+                    src="/whatsapp.png"
+                    alt="WhatsApp"
+                    width={28}
+                    height={28}
+                    className="h-7 w-7 object-contain"
+                  />
+                  <span className="leading-tight">
+                    <strong className="block text-sm font-semibold text-zinc-900">
+                      {CONTACT_PHONE}
+                    </strong>
+                    <span className="text-xs font-semibold text-zinc-900">Atendimento</span>
+                  </span>
+                </a>
+
+                <div className="border-t border-zinc-100 px-3 pt-2 text-sm font-semibold leading-snug text-zinc-900">
+                  Envie uma mensagem
+                </div>
+
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="flex cursor-pointer items-center gap-3 rounded px-3 py-2 hover:bg-zinc-50"
+                >
+                  <IconMail />
+                  <span className="text-sm font-semibold text-zinc-900">{CONTACT_EMAIL}</span>
+                </a>
+              </div>
+            </div>
+          </div>
 
           {status === "authenticated" ? (
             <div className="group relative">
@@ -166,13 +222,13 @@ export default function Header() {
                 </Link>
 
                 <div className="hidden min-w-[120px] leading-tight md:block">
-                  <p className="text-[11px] font-semibold tracking-wide text-zinc-900">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-900">
                     <Link href="/register" className="hover:text-zinc-600">
                       Cadastre-se
                     </Link>{" "}
                     <span className="font-normal text-zinc-500">ou</span>
                   </p>
-                  <p className="text-[11px] font-semibold tracking-wide text-zinc-900">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-900">
                     <Link href="/login" className="hover:text-zinc-600">
                       faça seu login
                     </Link>
@@ -202,7 +258,7 @@ export default function Header() {
             aria-label="Carrinho"
           >
             <IconCart />
-            <span className="text-sm font-semibold">{isHydrated ? itemCount : 0}</span>
+            <span className="text-base font-semibold">{isHydrated ? itemCount : 0}</span>
           </Link>
 
           {session?.user?.role === "admin" || session?.user?.role === "manager" ? (

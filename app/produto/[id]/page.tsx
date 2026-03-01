@@ -96,6 +96,8 @@ export default async function ProductPage({
                 name: product.name,
                 description: product.description,
                 basePrice: product.basePrice,
+                currentPrice: product.currentPrice,
+                isSaleActive: product.isSaleActive,
                 variants: product.variants,
               }}
             />

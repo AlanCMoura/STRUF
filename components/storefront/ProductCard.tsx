@@ -14,6 +14,8 @@ type ProductCardProps = {
     name: string;
     description: string | null;
     basePrice: number;
+    currentPrice: number;
+    isSaleActive: boolean;
     category: { name: string; slug: string };
     totalStock: number;
     variants: CardVariant[];
@@ -45,6 +47,7 @@ export default function ProductCard({
   highlight,
 }: ProductCardProps) {
   void highlight;
+  const hasAvailableStock = product.totalStock > 0;
   const href =
     source === "home" ? `/produto/${product.id}?from=home` : `/produto/${product.id}`;
 
@@ -61,12 +64,29 @@ export default function ProductCard({
         </div>
 
         <div className="mt-4 space-y-1 text-center">
-          <h3 className="line-clamp-2 text-base font-medium uppercase tracking-tight text-zinc-950 sm:text-lg">
+          <h3 className="line-clamp-2 text-sm font-normal uppercase tracking-tight text-zinc-950 sm:text-base">
             {product.name}
           </h3>
-          <div className="text-lg font-medium text-zinc-950 sm:text-xl">
-            {formatBRL(product.basePrice)}
-          </div>
+          {hasAvailableStock ? (
+            product.isSaleActive ? (
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-sm text-zinc-400 line-through sm:text-base">
+                  {formatBRL(product.basePrice)}
+                </span>
+                <span className="text-base font-medium text-zinc-950 sm:text-lg">
+                  {formatBRL(product.currentPrice)}
+                </span>
+              </div>
+            ) : (
+              <div className="text-base font-normal text-zinc-950 sm:text-lg">
+                {formatBRL(product.currentPrice)}
+              </div>
+            )
+          ) : (
+            <div className="text-sm font-normal uppercase tracking-tight text-zinc-950 sm:text-base">
+              indisponivel
+            </div>
+          )}
         </div>
       </Link>
     </article>
