@@ -13,8 +13,8 @@ export default async function HomePage() {
         <HomeHeroCarousel />
       </section>
 
-      <section className="w-full px-4 py-10 md:px-6">
-        <ProductGrid products={featured} />
+      <section className="w-full py-10">
+        <ProductGrid products={featured} source="home" />
       </section>
     </main>
   );

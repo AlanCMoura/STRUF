@@ -26,6 +26,7 @@ export default function PdpPurchasePanel({
   product: {
     id: number;
     name: string;
+    description: string | null;
     basePrice: number;
     variants: Variant[];
   };
@@ -33,10 +34,12 @@ export default function PdpPurchasePanel({
   const router = useRouter();
   const { status } = useSession();
   const { addItem } = useCart();
+
   const [selectedVariantId, setSelectedVariantId] = useState<number>(
     product.variants[0]?.id ?? 0
   );
   const [quantity, setQuantity] = useState(1);
+  const [shippingZip, setShippingZip] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const selectedVariant = useMemo(
@@ -45,15 +48,17 @@ export default function PdpPurchasePanel({
   );
 
   const maxQuantity = Math.max(selectedVariant?.stockQuantity ?? 0, 0);
+  const hasVariants = product.variants.length > 0;
 
   const handleAddToCart = () => {
     if (!selectedVariant) {
       setFeedback("Selecione uma variacao");
-      return;
+      return false;
     }
+
     if (selectedVariant.stockQuantity <= 0) {
       setFeedback("Variacao sem estoque");
-      return;
+      return false;
     }
 
     addItem({
@@ -66,114 +71,155 @@ export default function PdpPurchasePanel({
       unitPrice: product.basePrice,
       quantity: Math.max(1, Math.min(quantity, selectedVariant.stockQuantity)),
     });
+
     setFeedback("Adicionado ao carrinho");
+    return true;
   };
 
   const handleBuyNow = () => {
-    handleAddToCart();
+    const added = handleAddToCart();
+    if (!added) {
+      return;
+    }
+
     if (status === "unauthenticated") {
       router.push("/login?callbackUrl=/checkout");
       return;
     }
+
     router.push("/checkout");
   };
 
   return (
-    <div className="space-y-6 border border-zinc-200 bg-white p-6">
-      <div>
-        <h1 className="text-3xl font-black uppercase tracking-tight text-zinc-950">
+    <div className="space-y-6 bg-white">
+      <div className="border-b border-zinc-200 pb-4">
+        <h1 className="text-lg font-black uppercase leading-tight tracking-tight text-zinc-900 md:text-2xl">
           {product.name}
         </h1>
-        <p className="mt-3 text-2xl font-bold text-zinc-950">
+      </div>
+
+      {hasVariants ? (
+        <div className="space-y-2 border-b border-zinc-200 pb-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-700">
+            Selecione a opcao de tamanho:{" "}
+            <span className="font-black text-zinc-900">
+              {selectedVariant?.size ?? "-"}
+            </span>
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            {product.variants.map((variant) => {
+              const isActive = variant.id === selectedVariantId;
+              const soldOut = variant.stockQuantity <= 0;
+
+              return (
+                <button
+                  key={variant.id}
+                  type="button"
+                  disabled={soldOut}
+                  onClick={() => {
+                    setSelectedVariantId(variant.id);
+                    setQuantity(1);
+                    setFeedback(null);
+                  }}
+                  className={`relative h-9 min-w-[46px] border px-2 text-[11px] font-semibold uppercase ${
+                    isActive
+                      ? "border-black bg-black text-white"
+                      : "border-zinc-300 bg-white text-zinc-800"
+                  } ${soldOut ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:border-zinc-500"}`}
+                  title={soldOut ? "Sem estoque" : `${variant.color} / ${variant.size}`}
+                  aria-label={`${variant.size} ${variant.color}`}
+                >
+                  {variant.size}
+                  {isActive ? (
+                    <span className="absolute right-1 top-0 text-[9px] leading-none">
+                      ✓
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="space-y-1 border-b border-zinc-200 pb-5">
+        <p className="text-xl font-black leading-none text-zinc-950 md:text-2xl">
           {formatBRL(product.basePrice)}
         </p>
-        <p className="mt-1 text-xs uppercase tracking-[0.16em] text-zinc-500">
-          Drop exclusivo • Envio em 24h
-        </p>
       </div>
 
-      <div className="space-y-3">
-        <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-          Variacao (cor / tamanho)
-        </label>
-        <div className="grid gap-2">
-          {product.variants.map((variant) => {
-            const active = variant.id === selectedVariantId;
-            const soldOut = variant.stockQuantity <= 0;
-            return (
-              <button
-                key={variant.id}
-                type="button"
-                disabled={soldOut}
-                onClick={() => {
-                  setSelectedVariantId(variant.id);
-                  setQuantity(1);
-                  setFeedback(null);
-                }}
-                className={`flex items-center justify-between border px-4 py-3 text-left text-sm transition ${
-                  active
-                    ? "border-black bg-black text-white"
-                    : "border-zinc-200 bg-white text-zinc-800 hover:border-zinc-400"
-                } ${soldOut ? "cursor-not-allowed opacity-50" : ""}`}
-              >
-                <span>
-                  {variant.color} • {variant.size}
-                </span>
-                <span className="text-xs">
-                  {soldOut ? "Sem estoque" : `${variant.stockQuantity} und`}
-                </span>
-              </button>
-            );
-          })}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex h-12 w-[126px] items-center border border-zinc-300 bg-zinc-50 text-lg font-semibold text-zinc-700">
+          <button
+            type="button"
+            onClick={() => setQuantity((prev) => Math.max(prev - 1, 1))}
+            className="grid h-full w-full cursor-pointer place-items-center hover:bg-zinc-100"
+            aria-label="Diminuir quantidade"
+          >
+            -
+          </button>
+          <span className="grid h-full min-w-[48px] place-items-center text-zinc-900">
+            {quantity}
+          </span>
+          <button
+            type="button"
+            onClick={() => setQuantity((prev) => Math.min(prev + 1, Math.max(maxQuantity, 1)))}
+            className="grid h-full w-full cursor-pointer place-items-center hover:bg-zinc-100"
+            aria-label="Aumentar quantidade"
+          >
+            +
+          </button>
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <label
-          htmlFor="pdp-qty"
-          className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500"
-        >
-          Quantidade
-        </label>
-        <input
-          id="pdp-qty"
-          type="number"
-          min={1}
-          max={maxQuantity || 1}
-          value={quantity}
-          onChange={(event) => {
-            const next = Number(event.target.value);
-            if (Number.isNaN(next)) {
-              setQuantity(1);
-              return;
-            }
-            const clamped = Math.min(Math.max(next, 1), maxQuantity || 1);
-            setQuantity(clamped);
-          }}
-          className="w-28 border border-zinc-300 px-3 py-2 text-sm"
-        />
-      </div>
-
-      <div className="space-y-3">
         <button
           type="button"
           onClick={handleBuyNow}
-          className="w-full bg-black px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white hover:bg-zinc-800"
+          className="h-12 flex-1 cursor-pointer bg-black px-4 text-xs font-black uppercase tracking-wide text-white"
         >
-          Comprar agora
+          Comprar
         </button>
-        <button
-          type="button"
-          onClick={handleAddToCart}
-          className="w-full border border-zinc-300 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-zinc-900 hover:bg-zinc-50"
-        >
-          Adicionar ao carrinho
-        </button>
-        {feedback ? (
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            {feedback}
-          </p>
-        ) : null}
+      </div>
+
+      <div className="border-y border-zinc-200 py-6">
+        <p className="text-base font-semibold uppercase tracking-wide text-zinc-900">
+          Calcule o frete
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_170px]">
+          <input
+            value={shippingZip}
+            onChange={(event) => setShippingZip(event.target.value)}
+            placeholder="CEP"
+            className="h-12 border-b border-zinc-300 px-3 text-sm text-zinc-900 outline-none"
+          />
+          <button
+            type="button"
+            className="h-12 cursor-pointer bg-black px-4 text-xs font-black uppercase tracking-wide text-white"
+          >
+            Calcular
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="border-b border-zinc-200 pb-3">
+          <h2 className="text-2xl font-black text-zinc-900">Descrição</h2>
+        </div>
+
+        <p className="text-[13px] leading-6 text-zinc-700">
+          {product.description ??
+            "Peca desenvolvida para compor a colecao principal. Atualize este texto quando houver descricao editorial completa."}
+        </p>
+
+        <div className="space-y-2">
+          <h3 className="text-xl font-semibold text-zinc-900">Detalhes do produto</h3>
+          <ul className="list-disc space-y-1 pl-6 text-[13px] text-zinc-700">
+            <li>SKU: {selectedVariant?.sku ?? "Nao informado"}</li>
+            <li>Cor: {selectedVariant?.color ?? "Nao informado"}</li>
+            <li>Tamanho: {selectedVariant?.size ?? "Nao informado"}</li>
+            <li>Estoque atual: {selectedVariant?.stockQuantity ?? 0} unidades</li>
+          </ul>
+        </div>
       </div>
     </div>
   );

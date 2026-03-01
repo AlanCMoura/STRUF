@@ -6,10 +6,12 @@ export default function ProductGrid({
   products,
   title,
   subtitle,
+  source,
 }: {
   products: ProductGridItem[];
   title?: string;
   subtitle?: string;
+  source?: "home" | "category";
 }) {
   return (
     <section className="space-y-8">
@@ -31,11 +33,12 @@ export default function ProductGrid({
           Nenhum produto encontrado nesta selecao.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
           {products.map((product, index) => (
             <ProductCard
               key={product.id}
               product={product}
+              source={source}
               highlight={index < 2 ? "drop" : index % 3 === 0 ? "sale" : "new"}
             />
           ))}

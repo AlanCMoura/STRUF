@@ -62,9 +62,10 @@ export default async function CategoryPage({
         </div>
       </section>
 
-      <section className="w-full px-4 py-8 md:px-6">
+      <section className="w-full py-8">
         <ProductGrid
           products={products}
+          source="category"
           subtitle={`${products.length} produtos encontrados em ${category.name}.`}
         />
       </section>

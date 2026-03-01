@@ -289,7 +289,7 @@ export default function ProductsClient({ items }: { items: ProductItem[] }) {
             onClick={handleCheckout}
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Processando..." : "Finalizar checkout"}
+            Finalizar checkout
           </button>
           <button
             type="button"

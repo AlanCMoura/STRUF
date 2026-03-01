@@ -86,7 +86,7 @@ export default function CreateManagerForm() {
         className="w-full rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
         disabled={isSubmitting}
       >
-        {isSubmitting ? "Enviando..." : "Enviar convite"}
+        Enviar convite
       </button>
     </form>
   );

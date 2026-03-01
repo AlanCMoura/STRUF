@@ -162,7 +162,7 @@ export default function CheckoutPageClient() {
           disabled={isSubmitting}
           className="mt-5 w-full cursor-pointer bg-black px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? "Processando..." : "Finalizar pagamento"}
+          Finalizar pagamento
         </button>
       </aside>
     </form>

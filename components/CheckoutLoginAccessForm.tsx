@@ -143,9 +143,9 @@ export default function CheckoutLoginAccessForm({
             <button
               type="submit"
               disabled={isCheckingEmail}
-              className="h-11 min-w-32 bg-black px-5 text-base font-semibold text-white disabled:opacity-60"
+              className="h-11 min-w-32 cursor-pointer bg-black px-5 text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isCheckingEmail ? "..." : "Continuar"}
+              Continuar
             </button>
           </div>
 
@@ -174,7 +174,7 @@ export default function CheckoutLoginAccessForm({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">
+            <label className="mb-2 block text-sm font-semibold text-zinc-900">
               Senha
             </label>
             <div className="relative">
@@ -203,7 +203,7 @@ export default function CheckoutLoginAccessForm({
             disabled={isSubmitting}
             className="h-11 w-full bg-black px-5 text-base font-semibold text-white disabled:opacity-60"
           >
-            {isSubmitting ? "Entrando..." : "Entrar e continuar"}
+            Entrar e continuar
           </button>
         </form>
       )}

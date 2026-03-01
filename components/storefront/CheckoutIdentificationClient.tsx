@@ -267,7 +267,7 @@ export default function CheckoutIdentificationClient({
                 disabled={isLoginSubmitting}
                 className="h-11 cursor-pointer bg-black px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isLoginSubmitting ? "Entrando..." : "Prosseguir"}
+                Prosseguir
               </button>
             </div>
 
@@ -282,7 +282,7 @@ export default function CheckoutIdentificationClient({
                 disabled={isForgotSubmitting}
                 className="cursor-pointer text-xs text-zinc-600 underline underline-offset-2 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isForgotSubmitting ? "Enviando..." : "Esqueceu a senha?"}
+                Esqueceu a senha?
               </button>
               {forgotError ? (
                 <p className="mt-1 text-xs text-red-700">{forgotError}</p>
@@ -321,7 +321,7 @@ export default function CheckoutIdentificationClient({
                 disabled={isRegisterSubmitting}
                 className="h-11 cursor-pointer bg-black px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isRegisterSubmitting ? "..." : "Cadastrar"}
+                Cadastrar
               </button>
             </div>
 
