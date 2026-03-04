@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { pool } from "@/lib/db";
 import { authOptions } from "@/lib/auth";
 import { getLogger } from "@/lib/logger";
+import { isSaleActive, type DbDateValue } from "@/lib/date-utils";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,7 @@ type CartItem = {
 };
 
 type CheckoutPayload = {
+  addressId?: number;
   items: CartItem[];
 };
 
@@ -69,7 +71,7 @@ export async function POST(req: Request) {
     }
 
     const body = (await req.json()) as CheckoutPayload;
-    const { items } = body ?? {};
+    const { items, addressId } = body ?? {};
 
     if (!Array.isArray(items) || items.length === 0) {
       return respondError({
@@ -77,6 +79,21 @@ export async function POST(req: Request) {
         status: 400,
         code: "INVALID_INPUT",
         message: "items sao obrigatorios",
+        log,
+      });
+    }
+
+    const parsedAddressId =
+      typeof addressId === "number" && Number.isFinite(addressId)
+        ? Math.trunc(addressId)
+        : null;
+
+    if (parsedAddressId !== null && parsedAddressId <= 0) {
+      return respondError({
+        requestId,
+        status: 400,
+        code: "INVALID_ADDRESS_ID",
+        message: "Endereco invalido",
         log,
       });
     }
@@ -119,13 +136,36 @@ export async function POST(req: Request) {
         });
       }
 
+      if (parsedAddressId !== null) {
+        const addressCheck = await client.query<{ id: number }>(
+          `
+            SELECT id
+            FROM user_addresses
+            WHERE id = $1
+              AND user_id = $2
+            LIMIT 1
+          `,
+          [parsedAddressId, userId]
+        );
+
+        if (addressCheck.rows.length === 0) {
+          return respondError({
+            requestId,
+            status: 404,
+            code: "ADDRESS_NOT_FOUND",
+            message: "Endereco de entrega nao encontrado",
+            log,
+          });
+        }
+      }
+
       type VariantRow = {
         variant_id: number;
         stock_quantity: number;
         base_price: string;
         sale_price: string | null;
         on_sale: boolean;
-        sale_ends_at: string | null;
+        sale_ends_at: DbDateValue | null;
         sku: string;
       };
 
@@ -138,7 +178,7 @@ export async function POST(req: Request) {
             p.base_price,
             p.sale_price,
             p.on_sale,
-            p.sale_ends_at::text AS sale_ends_at,
+            p.sale_ends_at,
             v.sku
           FROM product_variants v
           JOIN products p ON p.id = v.product_id
@@ -173,14 +213,11 @@ export async function POST(req: Request) {
 
       for (const row of rows) {
         const quantity = quantityByVariant.get(row.variant_id) ?? 0;
-        const saleEndsAtTs = row.sale_ends_at
-          ? new Date(row.sale_ends_at).getTime()
-          : null;
-        const saleActive =
-          row.on_sale === true &&
-          row.sale_price !== null &&
-          (saleEndsAtTs === null ||
-            (!Number.isNaN(saleEndsAtTs) && saleEndsAtTs > Date.now()));
+        const saleActive = isSaleActive({
+          onSale: row.on_sale,
+          salePrice: row.sale_price,
+          saleEndsAt: row.sale_ends_at,
+        });
         const priceNumber = saleActive
           ? Number(row.sale_price)
           : Number(row.base_price);
@@ -212,14 +249,15 @@ export async function POST(req: Request) {
       }
 
       const totalAmount = (totalCents / 100).toFixed(2);
+      const createdAtIso = new Date().toISOString();
 
       const orderRes = await client.query<{ id: number }>(
         `
           INSERT INTO orders (user_id, total_amount, status, created_at)
-          VALUES ($1, $2, $3, NOW())
+          VALUES ($1, $2, $3, $4::timestamptz)
           RETURNING id
         `,
-        [userId, totalAmount, "pending"]
+        [userId, totalAmount, "pending", createdAtIso]
       );
 
       const orderId = orderRes.rows[0].id;

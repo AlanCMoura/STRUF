@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { isSaleActive, toIsoString, type DbDateValue } from "@/lib/date-utils";
 
 const PAGE_SIZE = 12;
 const ALLOWED_SIZES = new Set(["PP", "P", "M", "G", "GG"]);
@@ -21,8 +22,7 @@ type ProductRow = {
   current_price: string | number;
   sale_price: string | number | null;
   on_sale: boolean;
-  sale_ends_at: string | null;
-  is_sale_active: boolean;
+  sale_ends_at: DbDateValue | null;
   category_id: number;
   category_name: string;
   category_slug: string;
@@ -47,6 +47,7 @@ function parseMultiValues(values: string[]) {
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
+  const nowIso = new Date().toISOString();
   const category = searchParams.get("category")?.trim().toLowerCase() ?? "";
 
   const sizes = Array.from(
@@ -90,11 +91,13 @@ export async function GET(req: NextRequest) {
   }
 
   if (onlyOnSale) {
+    filterParams.push(nowIso);
+    const onSaleNowParam = `$${filterParams.length}::timestamptz`;
     whereClauses.push(
       `(
         p.on_sale = true
         AND p.sale_price IS NOT NULL
-        AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
+        AND (p.sale_ends_at IS NULL OR p.sale_ends_at > ${onSaleNowParam})
       )`
     );
   }
@@ -124,8 +127,9 @@ export async function GET(req: NextRequest) {
       ? "current_price DESC, p.id DESC"
       : "sold_quantity DESC, p.id ASC";
 
-  const limitParamIndex = filterParams.length + 1;
-  const offsetParamIndex = filterParams.length + 2;
+  const nowParamIndex = filterParams.length + 1;
+  const limitParamIndex = filterParams.length + 2;
+  const offsetParamIndex = filterParams.length + 3;
 
   const productResult = await query<ProductRow>(
     `
@@ -137,18 +141,13 @@ export async function GET(req: NextRequest) {
         CASE
           WHEN p.on_sale = true
            AND p.sale_price IS NOT NULL
-           AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
+           AND (p.sale_ends_at IS NULL OR p.sale_ends_at > $${nowParamIndex}::timestamptz)
           THEN p.sale_price
           ELSE p.base_price
         END AS current_price,
         p.sale_price,
         p.on_sale,
-        p.sale_ends_at::text AS sale_ends_at,
-        (
-          p.on_sale = true
-          AND p.sale_price IS NOT NULL
-          AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
-        ) AS is_sale_active,
+        p.sale_ends_at,
         c.id AS category_id,
         c.name AS category_name,
         c.slug AS category_slug,
@@ -163,7 +162,7 @@ export async function GET(req: NextRequest) {
       LIMIT $${limitParamIndex}
       OFFSET $${offsetParamIndex}
     `,
-    [...filterParams, PAGE_SIZE, offset]
+    [...filterParams, nowIso, PAGE_SIZE, offset]
   );
 
   const productIds = productResult.rows.map((row) => row.product_id);
@@ -228,17 +227,26 @@ export async function GET(req: NextRequest) {
       (accumulator, variant) => accumulator + Math.max(0, variant.stockQuantity),
       0
     );
+    const saleActive = isSaleActive({
+      onSale: row.on_sale,
+      salePrice: row.sale_price,
+      saleEndsAt: row.sale_ends_at,
+    });
+    const currentPrice =
+      saleActive && row.sale_price !== null
+        ? Number(row.sale_price)
+        : Number(row.base_price);
 
     return {
       id: row.product_id,
       name: row.product_name,
       description: row.product_description,
       basePrice: Number(row.base_price),
-      currentPrice: Number(row.current_price),
+      currentPrice,
       salePrice: row.sale_price !== null ? Number(row.sale_price) : null,
       onSale: row.on_sale,
-      saleEndsAt: row.sale_ends_at,
-      isSaleActive: row.is_sale_active,
+      saleEndsAt: toIsoString(row.sale_ends_at),
+      isSaleActive: saleActive,
       soldQuantity: row.sold_quantity,
       totalStock,
       category: {

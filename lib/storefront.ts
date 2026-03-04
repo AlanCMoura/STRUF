@@ -1,5 +1,6 @@
 import "server-only";
 import { query } from "@/lib/db";
+import { isSaleActive, toIsoString, type DbDateValue } from "@/lib/date-utils";
 
 export type CategoryItem = {
   id: number;
@@ -37,11 +38,9 @@ type ProductVariantRow = {
   product_name: string;
   product_description: string | null;
   base_price: string | number;
-  current_price: string | number;
   sale_price: string | number | null;
   on_sale: boolean;
-  sale_ends_at: string | null;
-  is_sale_active: boolean;
+  sale_ends_at: DbDateValue | null;
   category_id: number;
   category_name: string;
   category_slug: string;
@@ -53,12 +52,21 @@ type ProductVariantRow = {
 };
 
 function resolveSaleStatus(row: ProductVariantRow) {
+  const saleActive = isSaleActive({
+    onSale: row.on_sale,
+    salePrice: row.sale_price,
+    saleEndsAt: row.sale_ends_at,
+  });
+
   return {
     onSale: row.on_sale,
     salePrice: row.sale_price !== null ? Number(row.sale_price) : null,
-    saleEndsAt: row.sale_ends_at,
-    isSaleActive: row.is_sale_active,
-    currentPrice: Number(row.current_price),
+    saleEndsAt: toIsoString(row.sale_ends_at),
+    isSaleActive: saleActive,
+    currentPrice:
+      saleActive && row.sale_price !== null
+        ? Number(row.sale_price)
+        : Number(row.base_price),
   };
 }
 
@@ -149,21 +157,9 @@ export async function getStoreProducts(filters?: {
         p.name AS product_name,
         p.description AS product_description,
         p.base_price,
-        CASE
-          WHEN p.on_sale = true
-           AND p.sale_price IS NOT NULL
-           AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
-          THEN p.sale_price
-          ELSE p.base_price
-        END AS current_price,
         p.sale_price,
         p.on_sale,
-        p.sale_ends_at::text AS sale_ends_at,
-        (
-          p.on_sale = true
-          AND p.sale_price IS NOT NULL
-          AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
-        ) AS is_sale_active,
+        p.sale_ends_at,
         c.id AS category_id,
         c.name AS category_name,
         c.slug AS category_slug,
@@ -199,21 +195,9 @@ export async function getProductById(
         p.name AS product_name,
         p.description AS product_description,
         p.base_price,
-        CASE
-          WHEN p.on_sale = true
-           AND p.sale_price IS NOT NULL
-           AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
-          THEN p.sale_price
-          ELSE p.base_price
-        END AS current_price,
         p.sale_price,
         p.on_sale,
-        p.sale_ends_at::text AS sale_ends_at,
-        (
-          p.on_sale = true
-          AND p.sale_price IS NOT NULL
-          AND (p.sale_ends_at IS NULL OR p.sale_ends_at > NOW())
-        ) AS is_sale_active,
+        p.sale_ends_at,
         c.id AS category_id,
         c.name AS category_name,
         c.slug AS category_slug,
@@ -243,7 +227,7 @@ export async function getUserOrders(userId: number) {
     id: number;
     total_amount: string | number;
     status: string;
-    created_at: string;
+    created_at: DbDateValue;
     items_count: number;
   }>(
     `
@@ -251,7 +235,7 @@ export async function getUserOrders(userId: number) {
         o.id,
         o.total_amount,
         o.status,
-        o.created_at::text AS created_at,
+        o.created_at,
         COALESCE(SUM(oi.quantity), 0)::int AS items_count
       FROM orders o
       LEFT JOIN order_items oi ON oi.order_id = o.id
@@ -262,11 +246,180 @@ export async function getUserOrders(userId: number) {
     [userId]
   );
 
-  return result.rows.map((row) => ({
+  return result.rows.map(mapUserOrderRow);
+}
+
+export type UserOrderItem = {
+  id: number;
+  totalAmount: number;
+  status: string;
+  createdAt: string;
+  itemsCount: number;
+};
+
+export type UserOrdersPagination = {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+};
+
+export type UserOrdersPaginatedResult = {
+  orders: UserOrderItem[];
+  pagination: UserOrdersPagination;
+};
+
+function mapUserOrderRow(row: {
+  id: number;
+  total_amount: string | number;
+  status: string;
+  created_at: DbDateValue;
+  items_count: number;
+}): UserOrderItem {
+  return {
     id: row.id,
     totalAmount: Number(row.total_amount),
     status: row.status,
-    createdAt: row.created_at,
+    createdAt: toIsoString(row.created_at) ?? new Date(0).toISOString(),
     itemsCount: row.items_count,
-  }));
+  };
+}
+
+export async function getUserOrdersPaginated(
+  userId: number,
+  options?: { page?: number; pageSize?: number }
+): Promise<UserOrdersPaginatedResult> {
+  const requestedPage = options?.page ?? 1;
+  const requestedPageSize = options?.pageSize ?? 8;
+  const safePageSize = Math.max(1, Math.min(50, requestedPageSize));
+
+  const countResult = await query<{ total: number }>(
+    `
+      SELECT COUNT(*)::int AS total
+      FROM orders
+      WHERE user_id = $1
+    `,
+    [userId]
+  );
+
+  const totalItems = countResult.rows[0]?.total ?? 0;
+  const totalPages = totalItems > 0 ? Math.ceil(totalItems / safePageSize) : 1;
+  const safePage = Math.max(1, Math.min(requestedPage, totalPages));
+  const offset = (safePage - 1) * safePageSize;
+
+  const ordersResult = await query<{
+    id: number;
+    total_amount: string | number;
+    status: string;
+    created_at: DbDateValue;
+    items_count: number;
+  }>(
+    `
+      SELECT
+        o.id,
+        o.total_amount,
+        o.status,
+        o.created_at,
+        COALESCE(SUM(oi.quantity), 0)::int AS items_count
+      FROM orders o
+      LEFT JOIN order_items oi ON oi.order_id = o.id
+      WHERE o.user_id = $1
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+      LIMIT $2
+      OFFSET $3
+    `,
+    [userId, safePageSize, offset]
+  );
+
+  return {
+    orders: ordersResult.rows.map(mapUserOrderRow),
+    pagination: {
+      page: safePage,
+      pageSize: safePageSize,
+      totalItems,
+      totalPages,
+      hasPrevious: safePage > 1,
+      hasNext: safePage < totalPages,
+    },
+  };
+}
+
+export async function getUserOrderById(userId: number, orderId: number) {
+  const orderResult = await query<{
+    id: number;
+    total_amount: string | number;
+    status: string;
+    created_at: DbDateValue;
+    items_count: number;
+  }>(
+    `
+      SELECT
+        o.id,
+        o.total_amount,
+        o.status,
+        o.created_at,
+        COALESCE(SUM(oi.quantity), 0)::int AS items_count
+      FROM orders o
+      LEFT JOIN order_items oi ON oi.order_id = o.id
+      WHERE o.user_id = $1
+        AND o.id = $2
+      GROUP BY o.id
+      LIMIT 1
+    `,
+    [userId, orderId]
+  );
+
+  if (orderResult.rows.length === 0) {
+    return null;
+  }
+
+  const itemsResult = await query<{
+    id: number;
+    quantity: number;
+    price_at_purchase: string | number;
+    sku: string;
+    size: string;
+    color: string;
+    product_name: string;
+  }>(
+    `
+      SELECT
+        oi.id,
+        oi.quantity,
+        oi.price_at_purchase,
+        v.sku,
+        v.size,
+        v.color,
+        p.name AS product_name
+      FROM order_items oi
+      JOIN product_variants v ON v.id = oi.variant_id
+      JOIN products p ON p.id = v.product_id
+      WHERE oi.order_id = $1
+      ORDER BY oi.id ASC
+    `,
+    [orderId]
+  );
+
+  const orderRow = orderResult.rows[0];
+
+  return {
+    id: orderRow.id,
+    totalAmount: Number(orderRow.total_amount),
+    status: orderRow.status,
+    createdAt: toIsoString(orderRow.created_at) ?? new Date(0).toISOString(),
+    itemsCount: orderRow.items_count,
+    items: itemsResult.rows.map((row) => ({
+      id: row.id,
+      quantity: row.quantity,
+      priceAtPurchase: Number(row.price_at_purchase),
+      sku: row.sku,
+      size: row.size,
+      color: row.color,
+      productName: row.product_name,
+      lineTotal: Number(row.price_at_purchase) * row.quantity,
+    })),
+  };
 }

@@ -306,10 +306,10 @@ export default function CheckoutSignupAndPaymentClient({
 
   const [cpf, setCpf] = useState("");
   const [cellphone, setCellphone] = useState("");
-  const [phone, setPhone] = useState("");
   const [sex, setSex] = useState("");
   const [birthDate, setBirthDate] = useState("");
 
+  const [addressLabel, setAddressLabel] = useState("Principal");
   const [zipCode, setZipCode] = useState("");
   const [street, setStreet] = useState("");
   const [number, setNumber] = useState("");
@@ -422,6 +422,7 @@ export default function CheckoutSignupAndPaymentClient({
     const normalizedCpf = normalizeCpf(cpf);
     const normalizedCellphone = normalizePhoneDigits(cellphone);
     const normalizedBirthDate = birthDate.trim();
+    const normalizedAddressLabel = addressLabel.trim();
     const normalizedZipCode = normalizeCepDigits(zipCode);
     const normalizedStreet = street.trim();
     const normalizedNumber = number.trim();
@@ -475,6 +476,11 @@ export default function CheckoutSignupAndPaymentClient({
       return;
     }
 
+    if (normalizedAddressLabel.length < 2) {
+      setError("Informe um apelido para o endereco");
+      return;
+    }
+
     if (
       normalizedZipCode.length !== 8 ||
       !normalizedStreet ||
@@ -500,11 +506,11 @@ export default function CheckoutSignupAndPaymentClient({
           profile: {
             cpf: normalizedCpf,
             cellphone: normalizedCellphone,
-            phone,
             sex,
             birthDate: normalizedBirthDate,
           },
           address: {
+            label: normalizedAddressLabel,
             zipCode: normalizedZipCode,
             street: normalizedStreet,
             number: normalizedNumber,
@@ -668,9 +674,6 @@ export default function CheckoutSignupAndPaymentClient({
                   className={inputClass}
                 />
               </Field>
-              <Field label="Telefone fixo">
-                <input value={phone} onChange={(event) => setPhone(event.target.value)} className={inputClass} />
-              </Field>
               <Field label="Sexo">
                 <select value={sex} onChange={(event) => setSex(event.target.value)} className={inputClass}>
                   <option value="">Selecione</option>
@@ -694,6 +697,17 @@ export default function CheckoutSignupAndPaymentClient({
           <section className="border border-zinc-200 bg-white p-5 md:p-6">
             <SectionTitle title="Endereço" icon={<IconPin />} />
             <div className="grid gap-4 md:grid-cols-2 md:gap-x-5 md:gap-y-4">
+              <div className="md:col-span-2">
+                <Field label="Apelido do endereco" required>
+                  <input
+                    required
+                    value={addressLabel}
+                    onChange={(event) => setAddressLabel(event.target.value)}
+                    className={`${inputClass} max-w-[260px]`}
+                  />
+                </Field>
+              </div>
+
               <div className="md:col-span-2">
                 <Field label="CEP" required>
                   <input
@@ -951,9 +965,6 @@ export default function CheckoutSignupAndPaymentClient({
                   className={inputClass}
                 />
               </Field>
-              <Field label="Telefone fixo">
-                <input value={phone} onChange={(event) => setPhone(event.target.value)} className={inputClass} />
-              </Field>
             </div>
 
             <p className="text-xs text-zinc-600">
@@ -976,6 +987,15 @@ export default function CheckoutSignupAndPaymentClient({
           <SectionTitle title="Entrega" icon={<IconTruck />} />
 
           <div className="space-y-4">
+            <Field label="Apelido do endereco" required>
+              <input
+                required
+                value={addressLabel}
+                onChange={(event) => setAddressLabel(event.target.value)}
+                className={`${inputClass} max-w-[260px]`}
+              />
+            </Field>
+
             <Field label="CEP" required>
               <input
                 required

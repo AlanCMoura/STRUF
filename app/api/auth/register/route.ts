@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { query } from "@/lib/db";
+import { pool } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { getLogger } from "@/lib/logger";
 
@@ -16,11 +16,11 @@ type RegisterPayload = {
     birthDate?: string;
   };
   address?: {
+    label?: string;
     zipCode?: string;
     street?: string;
     number?: string;
     complement?: string;
-    reference?: string;
     district?: string;
     city?: string;
     state?: string;
@@ -122,11 +122,11 @@ export async function POST(req: Request) {
     const sex = toNullableString(body?.profile?.sex);
     const birthDate = normalizeBirthDate(body?.profile?.birthDate);
 
+    const addressLabel = toNullableString(body?.address?.label) ?? "Principal";
     const zipCode = normalizeCep(body?.address?.zipCode);
     const street = toNullableString(body?.address?.street);
     const addressNumber = toNullableString(body?.address?.number);
     const complement = toNullableString(body?.address?.complement);
-    const addressReference = toNullableString(body?.address?.reference);
     const district = toNullableString(body?.address?.district);
     const city = toNullableString(body?.address?.city);
     const state = toNullableString(body?.address?.state)?.toUpperCase() ?? null;
@@ -214,7 +214,7 @@ export async function POST(req: Request) {
         {
           error: {
             code: "INVALID_INPUT",
-            message: "Endereco completo obrigatorio (Complemento e referencia sao opcionais)",
+            message: "Endereco completo obrigatorio (Complemento e opcional)",
           },
           requestId,
         },
@@ -264,13 +264,111 @@ export async function POST(req: Request) {
       );
     }
 
-    const existing = await query<{ id: number }>(
-      `SELECT id FROM users WHERE email = $1`,
-      [email]
-    );
+    const passwordHash = await hashPassword(password);
+    const client = await pool.connect();
+    let userId: number | undefined;
 
-    if (existing.rows.length > 0) {
-      log.warn({ email }, "Cadastro invalido: email ja cadastrado");
+    try {
+      await client.query("BEGIN");
+
+      const existing = await client.query<{ id: number }>(
+        `SELECT id FROM users WHERE email = $1 LIMIT 1`,
+        [email]
+      );
+
+      if (existing.rows.length > 0) {
+        await client.query("ROLLBACK");
+        log.warn({ email }, "Cadastro invalido: email ja cadastrado");
+        return NextResponse.json(
+          {
+            error: {
+              code: "EMAIL_IN_USE",
+              message: "Email ja cadastrado",
+            },
+            requestId,
+          },
+          { status: 409 }
+        );
+      }
+
+      const createdUser = await client.query<{ id: number }>(
+        `
+          INSERT INTO users (
+            name,
+            email,
+            password,
+            role,
+            cpf,
+            cellphone,
+            phone,
+            sex,
+            birth_date
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING id
+        `,
+        [
+          name,
+          email,
+          passwordHash,
+          "customer",
+          cpf,
+          cellphone,
+          phone,
+          sex,
+          birthDate,
+        ]
+      );
+
+      userId = createdUser.rows[0]?.id;
+      if (!userId) {
+        throw new Error("USER_ID_NOT_RETURNED");
+      }
+
+      await client.query(
+        `
+          INSERT INTO user_addresses (
+            user_id,
+            label,
+            zip_code,
+            street,
+            address_number,
+            complement,
+            district,
+            city,
+            state,
+            is_default
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
+        `,
+        [
+          userId,
+          addressLabel,
+          zipCode,
+          street,
+          addressNumber,
+          complement,
+          district,
+          city,
+          state,
+        ]
+      );
+
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    log.info({ userId }, "Usuario criado");
+
+    return NextResponse.json({ ok: true, userId, requestId }, { status: 201 });
+  } catch (err) {
+    const dbErr = err as { code?: string; constraint?: string };
+    if (dbErr?.code === "23505" && dbErr?.constraint === "users_email_key") {
+      log.warn({ err }, "Cadastro invalido: email ja cadastrado");
       return NextResponse.json(
         {
           error: {
@@ -283,59 +381,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const passwordHash = await hashPassword(password);
-    const result = await query<{ id: number }>(
-      `INSERT INTO users (
-         name,
-         email,
-         password,
-         role,
-         cpf,
-         cellphone,
-         phone,
-         sex,
-         birth_date,
-         zip_code,
-         street,
-         address_number,
-         complement,
-         address_reference,
-         district,
-         city,
-         state
-       )
-       VALUES (
-         $1, $2, $3, $4, $5, $6, $7, $8,
-         $9, $10, $11, $12, $13, $14, $15, $16, $17
-       )
-       RETURNING id`,
-      [
-        name,
-        email,
-        passwordHash,
-        "customer",
-        cpf,
-        cellphone,
-        phone,
-        sex,
-        birthDate,
-        zipCode,
-        street,
-        addressNumber,
-        complement,
-        addressReference,
-        district,
-        city,
-        state,
-      ]
-    );
-
-    const userId = result.rows[0]?.id;
-    log.info({ userId }, "Usuario criado");
-
-    return NextResponse.json({ ok: true, userId, requestId }, { status: 201 });
-  } catch (err) {
-    const dbErr = err as { code?: string; constraint?: string };
     if (dbErr?.code === "23505" && dbErr?.constraint === "users_cpf_unique_idx") {
       log.warn({ err }, "Cadastro invalido: CPF ja cadastrado");
       return NextResponse.json(

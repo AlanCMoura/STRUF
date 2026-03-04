@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -58,6 +58,13 @@ export default function Header() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const { itemCount, isHydrated } = useCart();
+  const accountHref =
+    status === "authenticated" ? "/account" : "/login?callbackUrl=/account";
+  const ordersHref =
+    status === "authenticated"
+      ? "/account/pedidos"
+      : "/login?callbackUrl=/account/pedidos";
+  const loginToAccountHref = "/login?callbackUrl=/account";
   const isCheckoutLoginGate = pathname === "/login";
   const isCheckoutSignupGate = pathname === "/checkout/cadastro";
   const isCheckoutIdentificationGate = pathname === "/checkout/identificacao";
@@ -190,13 +197,13 @@ export default function Header() {
                   <div className="border-b border-zinc-100 px-3 pb-2 text-sm font-semibold leading-snug text-zinc-900">
                     Ola {session?.user?.name ?? "visitante"}, Bem vindo(a)
                   </div>
-                  <Link href="/account" className="block rounded px-3 py-2 hover:bg-zinc-50">
+                  <Link href={accountHref} className="block rounded px-3 py-2 hover:bg-zinc-50">
                     Minha conta
                   </Link>
-                  <Link href="/orders" className="block rounded px-3 py-2 hover:bg-zinc-50">
+                  <Link href={ordersHref} className="block rounded px-3 py-2 hover:bg-zinc-50">
                     Meus pedidos
                   </Link>
-                  <Link href="/account/edit" className="block rounded px-3 py-2 hover:bg-zinc-50">
+                  <Link href="/account/dados" className="block rounded px-3 py-2 hover:bg-zinc-50">
                     Editar dados
                   </Link>
                   {session?.user?.role === "admin" ? (
@@ -214,7 +221,7 @@ export default function Header() {
             <div className="group relative">
               <div className="flex items-center gap-2">
                 <Link
-                  href="/login"
+                  href={loginToAccountHref}
                   className="block rounded p-2 text-black hover:bg-zinc-100"
                   aria-label="Entrar"
                 >
@@ -229,7 +236,7 @@ export default function Header() {
                     <span className="font-normal text-zinc-500">ou</span>
                   </p>
                   <p className="text-xs font-semibold tracking-wide text-zinc-900">
-                    <Link href="/login" className="hover:text-zinc-600">
+                    <Link href={loginToAccountHref} className="hover:text-zinc-600">
                       faça seu login
                     </Link>
                   </p>
@@ -241,10 +248,10 @@ export default function Header() {
                   <div className="border-b border-zinc-100 px-3 pb-2 text-sm font-semibold leading-snug text-zinc-900">
                     Ola visitante, Bem vindo(a)
                   </div>
-                  <Link href="/account" className="block rounded px-3 py-2 hover:bg-zinc-50">
+                  <Link href={accountHref} className="block rounded px-3 py-2 hover:bg-zinc-50">
                     Minha conta
                   </Link>
-                  <Link href="/orders" className="block rounded px-3 py-2 hover:bg-zinc-50">
+                  <Link href={ordersHref} className="block rounded px-3 py-2 hover:bg-zinc-50">
                     Meus pedidos
                   </Link>
                 </div>

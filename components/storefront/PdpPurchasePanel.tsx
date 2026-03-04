@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useCart } from "@/components/CartProvider";
 
 type Variant = {
@@ -34,7 +33,6 @@ export default function PdpPurchasePanel({
   };
 }) {
   const router = useRouter();
-  const { status } = useSession();
   const { addItem } = useCart();
 
   const [selectedVariantId, setSelectedVariantId] = useState<number>(
@@ -125,12 +123,7 @@ export default function PdpPurchasePanel({
       return;
     }
 
-    if (status === "unauthenticated") {
-      router.push("/login?callbackUrl=/checkout");
-      return;
-    }
-
-    router.push("/checkout");
+    router.push("/carrinho");
   };
 
   return (

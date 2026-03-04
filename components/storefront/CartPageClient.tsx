@@ -13,8 +13,7 @@ function formatBRL(value: number) {
 
 export default function CartPageClient() {
   const { status } = useSession();
-  const { items, subtotal, updateQuantity, removeItem, clearCart, isHydrated } =
-    useCart();
+  const { items, subtotal, updateQuantity, removeItem, isHydrated } = useCart();
   const checkoutHref =
     status === "authenticated" ? "/checkout" : "/login?callbackUrl=/checkout";
 
@@ -127,17 +126,16 @@ export default function CartPageClient() {
         <div className="mt-5 space-y-2">
           <Link
             href={checkoutHref}
-            className="block bg-black px-4 py-3 text-center text-sm font-semibold uppercase tracking-wide text-white hover:bg-zinc-800"
+            className="block bg-black px-4 py-3 text-center text-sm font-semibold tracking-wide text-white hover:bg-zinc-800"
           >
-            Ir para checkout
+            Finalizar compra
           </Link>
-          <button
-            type="button"
-            onClick={clearCart}
-            className="w-full border border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          <Link
+            href="/"
+            className="block border border-zinc-300 px-4 py-3 text-center text-sm font-medium text-zinc-700 hover:bg-zinc-50"
           >
-            Limpar carrinho
-          </button>
+            Continuar comprando
+          </Link>
         </div>
       </aside>
     </div>
