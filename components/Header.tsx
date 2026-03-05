@@ -75,6 +75,10 @@ export default function Header() {
     isCheckoutIdentificationGate ||
     isPasswordResetPage;
 
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
   if (isMinimalCheckoutHeader) {
     return (
       <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)]">

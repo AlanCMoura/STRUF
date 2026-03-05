@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import PdpPurchasePanel from "@/components/storefront/PdpPurchasePanel";
@@ -34,12 +35,13 @@ export default async function ProductPage({
     }
   }
 
-  const previewPanels = [
-    { key: "principal", label: product.name },
-    { key: "detalhe", label: product.category.name },
-    { key: "textura", label: product.variants[0]?.color ?? "Cor" },
-    { key: "acabamento", label: product.variants[0]?.size ?? "Tamanho" },
-  ];
+  const galleryImages = (product.images ?? [])
+    .filter((image): image is string => Boolean(image))
+    .slice(0, 4);
+
+  while (galleryImages.length < 4) {
+    galleryImages.push("");
+  }
 
   return (
     <main className="min-h-screen bg-white text-zinc-950">
@@ -68,22 +70,29 @@ export default async function ProductPage({
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
           <section>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              {previewPanels.map((panel, index) => (
+              {galleryImages.map((image, index) => (
                 <div
-                  key={panel.key}
+                  key={`${product.id}-gallery-${index}`}
                   className="group relative aspect-[4/5] overflow-hidden bg-zinc-100"
                 >
-                  <div
-                    className={`h-full w-full transition duration-300 group-hover:scale-[1.02] ${
-                      index % 2 === 0
-                        ? "bg-[linear-gradient(145deg,#e4e4e7,#d4d4d8)]"
-                        : "bg-[linear-gradient(145deg,#d4d4d8,#c4c4c7)]"
-                    }`}
-                  />
-                  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.28),transparent_44%,rgba(255,255,255,0.08))]" />
-                  <div className="pointer-events-none absolute bottom-3 left-3 text-[11px] font-medium uppercase tracking-[0.15em] text-zinc-600">
-                    {panel.label}
-                  </div>
+                  {image ? (
+                    <Image
+                      src={image}
+                      alt={`${product.name} - imagem ${index + 1}`}
+                      fill
+                      sizes="(min-width: 1280px) 500px, (min-width: 768px) 50vw, 100vw"
+                      className="object-cover transition duration-300 group-hover:scale-[1.02]"
+                      priority={index === 0}
+                    />
+                  ) : (
+                    <div
+                      className={`h-full w-full transition duration-300 group-hover:scale-[1.02] ${
+                        index % 2 === 0
+                          ? "bg-[linear-gradient(145deg,#e4e4e7,#d4d4d8)]"
+                          : "bg-[linear-gradient(145deg,#d4d4d8,#c4c4c7)]"
+                      }`}
+                    />
+                  )}
                 </div>
               ))}
             </div>

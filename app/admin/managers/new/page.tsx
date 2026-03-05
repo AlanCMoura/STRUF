@@ -6,34 +6,26 @@ import CreateManagerForm from "@/components/CreateManagerForm";
 export default async function CreateManagerPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session) {
+  if (!session?.user?.id) {
     redirect("/login?callbackUrl=/admin/managers/new");
   }
 
   if (session.user.role !== "admin") {
-    return (
-      <main className="min-h-screen bg-zinc-50 px-6 py-12 text-zinc-900">
-        <div className="mx-auto w-full max-w-3xl rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-semibold">Acesso negado</h1>
-          <p className="mt-2 text-sm text-zinc-600">
-            Apenas administradores podem cadastrar managers.
-          </p>
-        </div>
-      </main>
-    );
+    redirect("/admin");
   }
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-12 text-zinc-900">
-      <div className="mx-auto w-full max-w-md rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold">Cadastrar manager</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          Crie um usuario com role manager.
+    <section className="mx-auto w-full max-w-xl space-y-4">
+      <div>
+        <h2 className="text-xl font-semibold text-zinc-900">Cadastrar manager</h2>
+        <p className="text-sm text-zinc-600">
+          Envie um convite para o novo manager definir senha e acessar o painel.
         </p>
-        <div className="mt-6">
-          <CreateManagerForm />
-        </div>
       </div>
-    </main>
+
+      <div className="border border-zinc-200 bg-white p-5">
+        <CreateManagerForm />
+      </div>
+    </section>
   );
 }

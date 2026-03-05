@@ -8,6 +8,7 @@ type ProductItem = {
   id: number;
   name: string;
   description: string | null;
+  images: string[];
   basePrice: number;
   currentPrice: number;
   salePrice: number | null;

@@ -1,4 +1,7 @@
-﻿import Link from "next/link";
+﻿"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const CONTACT_PHONE = "(13) 98225-8943";
 const CONTACT_PHONE_LINK = "5513982258943";
@@ -23,6 +26,12 @@ function InstagramIcon() {
 }
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <footer className="border-t border-white/10 bg-black text-white">
       <div className="mx-auto w-full max-w-5xl px-4 py-12 md:px-6 md:py-16">
@@ -48,7 +57,7 @@ export default function Footer() {
               href="/fundadores"
               className="text-sm font-semibold uppercase tracking-wide text-white hover:text-white/75"
             >
-              Conheça os fundadores
+              Conheca os fundadores
             </Link>
           </nav>
 

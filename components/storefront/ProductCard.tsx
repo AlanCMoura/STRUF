@@ -1,4 +1,5 @@
-﻿import Link from "next/link";
+﻿import Image from "next/image";
+import Link from "next/link";
 
 type CardVariant = {
   id: number;
@@ -13,6 +14,7 @@ type ProductCardProps = {
     id: number;
     name: string;
     description: string | null;
+    images: string[];
     basePrice: number;
     currentPrice: number;
     isSaleActive: boolean;
@@ -48,6 +50,7 @@ export default function ProductCard({
 }: ProductCardProps) {
   void highlight;
   const hasAvailableStock = product.totalStock > 0;
+  const primaryImage = product.images[0] ?? null;
   const href =
     source === "home" ? `/produto/${product.id}?from=home` : `/produto/${product.id}`;
 
@@ -55,12 +58,22 @@ export default function ProductCard({
     <article className="group">
       <Link href={href} className="block">
         <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100">
-          <div
-            className={`h-full w-full bg-gradient-to-br ${productAccent(
-              product.id
-            )} transition duration-300 group-hover:scale-[1.03]`}
-            aria-label={product.name}
-          />
+          {primaryImage ? (
+            <Image
+              src={primaryImage}
+              alt={product.name}
+              fill
+              className="object-cover transition duration-300 group-hover:scale-[1.03]"
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            />
+          ) : (
+            <div
+              className={`h-full w-full bg-gradient-to-br ${productAccent(
+                product.id
+              )} transition duration-300 group-hover:scale-[1.03]`}
+              aria-label={product.name}
+            />
+          )}
         </div>
 
         <div className="mt-4 space-y-1 text-center">

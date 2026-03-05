@@ -18,6 +18,7 @@ type ProductRow = {
   product_id: number;
   product_name: string;
   product_description: string | null;
+  images: string[] | null;
   base_price: string | number;
   current_price: string | number;
   sale_price: string | number | null;
@@ -137,6 +138,7 @@ export async function GET(req: NextRequest) {
         p.id AS product_id,
         p.name AS product_name,
         p.description AS product_description,
+        p.images,
         p.base_price,
         CASE
           WHEN p.on_sale = true
@@ -236,11 +238,15 @@ export async function GET(req: NextRequest) {
       saleActive && row.sale_price !== null
         ? Number(row.sale_price)
         : Number(row.base_price);
+    const images = Array.isArray(row.images)
+      ? row.images.filter((value): value is string => Boolean(value))
+      : [];
 
     return {
       id: row.product_id,
       name: row.product_name,
       description: row.product_description,
+      images,
       basePrice: Number(row.base_price),
       currentPrice,
       salePrice: row.sale_price !== null ? Number(row.sale_price) : null,

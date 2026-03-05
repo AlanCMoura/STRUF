@@ -20,6 +20,7 @@ export type ProductCardItem = {
   id: number;
   name: string;
   description: string | null;
+  images: string[];
   basePrice: number;
   currentPrice: number;
   salePrice: number | null;
@@ -37,6 +38,7 @@ type ProductVariantRow = {
   product_id: number;
   product_name: string;
   product_description: string | null;
+  images: string[] | null;
   base_price: string | number;
   sale_price: string | number | null;
   on_sale: boolean;
@@ -105,6 +107,7 @@ function groupProducts(rows: ProductVariantRow[]): ProductCardItem[] {
         id: row.product_id,
         name: row.product_name,
         description: row.product_description,
+        images: row.images ?? [],
         basePrice: Number(row.base_price),
         ...resolveSaleStatus(row),
         category: {
@@ -156,6 +159,7 @@ export async function getStoreProducts(filters?: {
         p.id AS product_id,
         p.name AS product_name,
         p.description AS product_description,
+        p.images,
         p.base_price,
         p.sale_price,
         p.on_sale,
@@ -194,6 +198,7 @@ export async function getProductById(
         p.id AS product_id,
         p.name AS product_name,
         p.description AS product_description,
+        p.images,
         p.base_price,
         p.sale_price,
         p.on_sale,
