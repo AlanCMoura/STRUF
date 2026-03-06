@@ -72,6 +72,17 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function moveImageToPosition<T>(items: T[], fromIndex: number, toIndex: 0 | 1) {
+  if (fromIndex < 0 || fromIndex >= items.length) {
+    return items;
+  }
+
+  const next = [...items];
+  const [selectedItem] = next.splice(fromIndex, 1);
+  next.splice(Math.min(toIndex, next.length), 0, selectedItem);
+  return next.slice(0, 4);
+}
+
 export default function AdminProductsPanel({
   initialProducts,
   categories,
@@ -246,8 +257,22 @@ export default function AdminProductsPanel({
 
     setCurrentImages((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
   };
+
+  const setEditImageRole = (index: number, role: 0 | 1) => {
+    if (selectedFiles.length > 0) {
+      setSelectedFiles((previous) => moveImageToPosition(previous, index, role));
+      return;
+    }
+
+    setCurrentImages((previous) => moveImageToPosition(previous, index, role));
+  };
+
   const removeCreateImageAt = (index: number) => {
     setCreateFiles((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const setCreateImageRole = (index: number, role: 0 | 1) => {
+    setCreateFiles((previous) => moveImageToPosition(previous, index, role));
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -824,7 +849,7 @@ export default function AdminProductsPanel({
             />
 
             <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
-              <span>A primeira imagem sera capa.</span>
+              <span>Imagem 1 = vitrine. Imagem 2 = secundaria.</span>
               {createFiles.length > 0 ? (
                 <button
                   type="button"
@@ -841,25 +866,53 @@ export default function AdminProductsPanel({
             <div className="grid gap-4 md:grid-cols-4">
               {createPreviewUrls.map((src, index) => (
                 <div key={`${src}-${index}`} className="border border-zinc-200 bg-zinc-50">
-                  <Image
-                    src={src}
-                    alt={`Preview novo produto ${index + 1}`}
-                    width={320}
-                    height={400}
-                    className="h-44 w-full object-cover"
-                    unoptimized
-                  />
+                  <div className="relative">
+                    <Image
+                      src={src}
+                      alt={`Preview novo produto ${index + 1}`}
+                      width={320}
+                      height={400}
+                      className="h-44 w-full object-cover"
+                      unoptimized
+                    />
+                    {index === 0 ? (
+                      <span className="absolute left-2 top-2 bg-black px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        Vitrine
+                      </span>
+                    ) : null}
+                    {index === 1 ? (
+                      <span className="absolute left-2 top-2 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-900">
+                        Secundaria
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="flex items-center justify-between px-2 py-2">
-                    <p className="text-xs text-zinc-600">
-                      {index === 0 ? "Capa" : `Imagem ${index + 1}`}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => removeCreateImageAt(index)}
-                      className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-900"
-                    >
-                      Excluir
-                    </button>
+                    <p className="text-xs text-zinc-600">{`Imagem ${index + 1}`}</p>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCreateImageRole(index, 0)}
+                        className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-900"
+                      >
+                        Vitrine
+                      </button>
+                      {createPreviewUrls.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => setCreateImageRole(index, 1)}
+                          className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-900"
+                        >
+                          Secundaria
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => removeCreateImageAt(index)}
+                        className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-900"
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1015,7 +1068,7 @@ export default function AdminProductsPanel({
             />
 
             <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
-              <span>A primeira imagem sera capa.</span>
+              <span>Imagem 1 = vitrine. Imagem 2 = secundaria.</span>
               {selectedFiles.length > 0 ? (
                 <button
                   type="button"
@@ -1032,25 +1085,53 @@ export default function AdminProductsPanel({
             <div className="grid gap-4 md:grid-cols-4">
               {imageSources.map((src, index) => (
                 <div key={`${src}-${index}`} className="border border-zinc-200 bg-zinc-50">
-                  <Image
-                    src={src}
-                    alt={`Preview ${index + 1}`}
-                    width={320}
-                    height={400}
-                    className="h-44 w-full object-cover"
-                    unoptimized={src.startsWith("blob:")}
-                  />
+                  <div className="relative">
+                    <Image
+                      src={src}
+                      alt={`Preview ${index + 1}`}
+                      width={320}
+                      height={400}
+                      className="h-44 w-full object-cover"
+                      unoptimized={src.startsWith("blob:")}
+                    />
+                    {index === 0 ? (
+                      <span className="absolute left-2 top-2 bg-black px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        Vitrine
+                      </span>
+                    ) : null}
+                    {index === 1 ? (
+                      <span className="absolute left-2 top-2 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-900">
+                        Secundaria
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="flex items-center justify-between px-2 py-2">
-                    <p className="text-xs text-zinc-600">
-                      {index === 0 ? "Capa" : `Imagem ${index + 1}`}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => removeImageAt(index)}
-                      className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-900"
-                    >
-                      Excluir
-                    </button>
+                    <p className="text-xs text-zinc-600">{`Imagem ${index + 1}`}</p>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setEditImageRole(index, 0)}
+                        className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-900"
+                      >
+                        Vitrine
+                      </button>
+                      {imageSources.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditImageRole(index, 1)}
+                          className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-900"
+                        >
+                          Secundaria
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => removeImageAt(index)}
+                        className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-900"
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
